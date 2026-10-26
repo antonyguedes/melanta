@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Melanta</string>
+
+    <!-- Onboarding de permissões -->
+    <string name="onboarding_title">Permissões</string>
+    <string name="onboarding_intro">O Melanta roda um modelo de IA no próprio aparelho e opera outros apps por você. Para isso, ele precisa das permissões abaixo. Nada da sua tela sai do celular.</string>
+    <string name="onboarding_continue">Continuar</string>
+    <string name="permission_required">Obrigatória</string>
+    <string name="permission_recommended">Recomendada</string>
+    <string name="permission_optional">Opcional</string>
+    <string name="permission_granted">Concedida</string>
+    <string name="permission_denied">Não concedida</string>
+    <string name="permission_open_settings">Abrir configurações</string>
+    <string name="permission_allow">Permitir</string>
+
+    <string name="permission_accessibility_title">Acessibilidade</string>
+    <string name="permission_accessibility_body">Permite ler a tela e tocar, digitar e rolar em outros apps. O agente só age depois que você inicia uma tarefa.</string>
+    <string name="permission_accessibility_waiting">Ativada, aguardando o sistema conectar o serviço…</string>
+
+    <string name="permission_restricted_title">Configuração restrita bloqueada?</string>
+    <string name="permission_restricted_body">No Android 13 ou superior, apps instalados fora da loja não podem ativar Acessibilidade de primeira. Se a opção aparecer desativada: abra a tela do app, toque no menu ⋮ e escolha \"Permitir configurações restritas\". Depois volte e ative a Acessibilidade.</string>
+    <string name="permission_restricted_action">Abrir informações do app</string>
+
+    <string name="permission_notifications_title">Notificações</string>
+    <string name="permission_notifications_body">Mostra a notificação persistente com o botão PARAR enquanto o agente trabalha e o progresso do download do modelo.</string>
+
+    <string name="permission_listener_title">Leitor de notificações</string>
+    <string name="permission_listener_body">Dá ao agente o contexto das notificações recentes (por exemplo, a última mensagem recebida).</string>
+
+    <string name="permission_overlay_title">Sobreposição a outros apps</string>
+    <string name="permission_overlay_body">Reserva para o botão flutuante de parada quando a Acessibilidade estiver desligada.</string>
+
+    <!-- Início -->
+    <string name="home_model_not_installed">Não baixado · %1$s</string>
+    <string name="home_model_installed">Instalado · %1$s</string>
+    <string name="home_model_queued">Na fila (aguardando rede ou nova tentativa)</string>
+    <string name="home_model_progress">%1$s de %2$s</string>
+    <string name="home_model_verifying">Verificando SHA-256…</string>
+    <string name="home_model_download">Baixar</string>
+    <string name="home_model_cancel">Cancelar</string>
+    <string name="home_model_delete">Excluir</string>
+    <string name="home_model_failed">O download falhou: %1$s</string>
+    <string name="home_model_import">Importar arquivo…</string>
+    <string name="home_model_importing">Importando… %1$s</string>
+    <string name="home_model_device_ram">Este aparelho tem ~%1$d GB de RAM. Primeira carga precisa de espaço livre igual ao tamanho do modelo (cache de pesos).</string>
+    <string name="home_model_ram_ok">Recomendado: %1$d GB de RAM ou mais</string>
+    <string name="home_model_ram_low">Recomendado: %1$d GB de RAM. Pode ficar lento ou faltar memória neste aparelho.</string>
+
+    <string name="home_import_ok">Importado: %1$s</string>
+    <string name="home_import_unsupported">Formato não suportado: %1$s (use .task, .bin, .litertlm ou .gguf)</string>
+    <string name="home_import_exists">Já existe um modelo chamado %1$s</string>
+    <string name="home_import_no_space">Espaço insuficiente para importar</string>
+    <string name="home_import_failed">A importação falhou: %1$s</string>
+
+    <string name="failure_unknown_model">modelo desconhecido</string>
+    <string name="failure_no_space">espaço insuficiente</string>
+    <string name="failure_checksum">o arquivo baixado está corrompido (SHA-256 divergente)</string>
+    <string name="failure_http">o servidor recusou o download</string>
+    <string name="failure_network">sem conexão estável</string>
+    <string name="failure_generic">erro desconhecido</string>
+
+    <!-- Playground (debug do modelo) -->
+    <string name="playground_title">Playground do modelo</string>
+    <string name="playground_back">Voltar</string>
+    <string name="playground_model">Modelo e backend</string>
+    <string name="playground_no_models">Nenhum modelo instalado. Baixe ou importe um na tela inicial.</string>
+    <string name="playground_load">Carregar</string>
+    <string name="playground_unload">Descarregar</string>
+    <string name="playground_constrained">JSON restrito (LLGuidance)</string>
+    <string name="playground_engine_unloaded">Motor: não carregado</string>
+    <string name="playground_engine_loading">Motor: carregando %1$s…</string>
+    <string name="playground_engine_ready">Motor: pronto · %1$s · carregado em %2$.1f s</string>
+    <string name="playground_engine_error">Motor: erro · %1$s</string>
+    <string name="playground_scenario">Cenário sintético</string>
+    <string name="playground_task">Tarefa</string>
+    <string name="playground_history">Histórico (uma ação por linha)</string>
+    <string name="playground_screen">Tela</string>
+    <string name="playground_generate">Gerar</string>
+    <string name="playground_benchmark">Benchmark</string>
+    <string name="playground_cancel">Cancelar</string>
+    <string name="playground_live">Gerando (tentativa %1$d)…</string>
+    <string name="playground_result">Resultado</string>
+    <string name="playground_prompt_size">Prompt ≈ %1$d tokens (estimado) · %2$d elementos na tela · %3$d ocultos</string>
+    <string name="playground_attempt">Tentativa %1$d</string>
+    <string name="playground_benchmark_title">Benchmark</string>
+    <string name="playground_benchmark_summary">Válidos: %1$d/%2$d · na 1ª tentativa: %3$d · ferramenta esperada: %4$d</string>
+
+    <!-- Automação (debug da Fase 3) -->
+    <string name="automation_title">Automação (debug)</string>
+    <string name="automation_intro">Capturar lê a tela do app que estiver aberto depois da contagem. Executar lê a tela, aplica o JSON e mostra a tela resultante. Troque para o app alvo durante a contagem.</string>
+    <string name="automation_json">JSON da ação</string>
+    <string name="automation_capture">Capturar em 5 s</string>
+    <string name="automation_execute">Executar em 5 s</string>
+    <string name="automation_countdown">Troque para o app alvo… %1$d</string>
+
+    <!-- Modelos -->
+    <string name="models_title">Modelos</string>
+    <string name="models_catalog">Catálogo (gratuito, roda no aparelho)</string>
+    <string name="models_recommended">Recomendado</string>
+    <string name="models_import_section">Importar</string>
+    <string name="models_import_body">Use um arquivo .litertlm, .task, .bin ou .gguf que você já tenha.</string>
+</resources>

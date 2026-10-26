@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- specialUse: loop do agente + inferência local (não há tipo padrão de FGS para isso). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 16+: a notificação de progresso vira "Live Update" (chip na barra de status). -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+
+    <!--
+        Kill switch. Primário: overlay TYPE_ACCESSIBILITY_OVERLAY (não exige permissão extra).
+        Fallback: overlay via SYSTEM_ALERT_WINDOW quando o A11y estiver desligado.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application>
+        <service
+            android:name=".service.AgentForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="on_device_llm_agent: executes a local language model and a user-initiated, user-cancellable UI automation loop. No standard FGS type covers on-device LLM inference." />
+        </service>
+
+        <!-- Botões das notificações (PARAR, Permitir, Negar). Só recebe PendingIntents explícitos do app. -->
+        <receiver
+            android:name=".safety.AgentNotificationReceiver"
+            android:exported="false" />
+    </application>
+
+</manifest>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_channel_name">Agente em execução</string>
+    <string name="agent_channel_description">Mostrada enquanto o agente opera o celular. Use PARAR para interromper.</string>
+    <string name="agent_notification_title">Melanta está operando o celular</string>
+    <string name="agent_notification_loading">Carregando o modelo…</string>
+    <string name="agent_notification_step">Passo %1$d · %2$s</string>
+    <string name="agent_notification_confirm">Aguardando sua confirmação</string>
+    <string name="agent_notification_stop">PARAR</string>
+    <string name="agent_phase_perceiving">lendo a tela</string>
+    <string name="agent_phase_reasoning">pensando</string>
+    <string name="agent_phase_acting">agindo</string>
+    <string name="agent_confirm_channel">Confirmações do agente</string>
+    <string name="agent_confirm_title">O agente quer confirmar uma ação</string>
+    <string name="agent_confirm_allow">Permitir</string>
+    <string name="agent_confirm_deny">Negar</string>
+    <string name="overlay_loading">Carregando…</string>
+    <string name="overlay_step">Passo %1$d</string>
+    <string name="overlay_confirm">Confirmar?</string>
+    <string name="overlay_stop">PARAR</string>
+    <string name="overlay_allow">Permitir</string>
+    <string name="overlay_deny">Negar</string>
+
+    <!-- Tela do agente -->
+    <string name="app_title">Melanta</string>
+    <string name="agent_models">Modelos</string>
+    <string name="agent_permissions">Permissões</string>
+    <string name="agent_tools">Ferramentas</string>
+    <string name="agent_playground">Playground do modelo</string>
+    <string name="agent_automation">Automação (debug)</string>
+    <string name="agent_hero_idle">O que eu faço por você?</string>
+    <string name="agent_hero_loading">Carregando o modelo…</string>
+    <string name="agent_hero_running">Passo %1$d · %2$s</string>
+    <string name="agent_hero_confirm">Preciso da sua confirmação</string>
+    <string name="agent_hero_finished">Pronto</string>
+    <string name="agent_hero_failed">Não deu certo</string>
+    <string name="agent_hero_cancelled">Parado</string>
+    <string name="agent_model_none">Nenhum modelo instalado</string>
+    <string name="agent_model_ready">%1$s · pronto (%2$s)</string>
+    <string name="agent_model_loading">%1$s · carregando</string>
+    <string name="agent_model_error">%1$s · erro ao carregar</string>
+    <string name="agent_model_idle">%1$s · carrega ao iniciar uma tarefa</string>
+    <string name="agent_setup_accessibility">Ative a Acessibilidade do Melanta para ele poder operar o celular.</string>
+    <string name="agent_setup_model">Baixe um modelo para começar. Tudo roda no aparelho.</string>
+    <string name="agent_task_placeholder">Ex.: põe um alarme para 7h</string>
+    <string name="agent_start">Iniciar</string>
+    <string name="agent_stop">Parar agora</string>
+    <string name="agent_new_task">Nova tarefa</string>
+    <string name="agent_timeline">Passos</string>
+    <string name="agent_step_denied">Você negou esta ação.</string>
+    <string name="agent_step_awaiting">Aguardando sua confirmação…</string>
+    <string name="agent_confirm_dialog_title">Permitir esta ação?</string>
+    <string name="agent_suggestion_alarm">Põe um alarme para 7h</string>
+    <string name="agent_suggestion_timer">Timer de 5 minutos</string>
+    <string name="agent_suggestion_search">Previsão do tempo para amanhã</string>
+    <string name="agent_suggestion_app">Abre o YouTube</string>
+
+    <!-- Progresso e resultado em segundo plano -->
+    <string name="agent_progress_reading">Lendo a tela…</string>
+    <string name="agent_progress_thinking">Pensando no próximo passo…</string>
+    <string name="agent_progress_acting">Executando…</string>
+    <string name="agent_progress_confirm">Aguardando sua confirmação: %1$s</string>
+    <string name="agent_chip_step">Passo %1$d</string>
+    <string name="agent_chip_loading">Carregando</string>
+    <string name="agent_chip_confirm">Confirmar?</string>
+    <string name="agent_result_channel">Resultado das tarefas</string>
+    <string name="agent_result_finished">Tarefa concluída</string>
+    <string name="agent_result_failed">A tarefa não deu certo</string>
+    <string name="agent_result_cancelled">Tarefa parada</string>
+</resources>

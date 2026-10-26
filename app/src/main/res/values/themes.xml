@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sempre escuro: fundo preto tático evita o flash branco antes do Compose desenhar. -->
+    <style name="Theme.Melanta" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/tactical_black</item>
+        <item name="android:colorPrimary">@color/plum</item>
+        <item name="android:colorAccent">@color/lilac</item>
+    </style>
+</resources>

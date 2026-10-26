@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_label">Melanta – agente</string>
+    <string name="accessibility_service_description">Permite que o Melanta leia o conteúdo da tela e toque, digite e role em outros apps para concluir as tarefas que você pedir. Tudo roda no aparelho: nada da tela é enviado para a internet. O agente só age quando você inicia uma tarefa e pode ser parado a qualquer momento pela notificação.</string>
+    <string name="notification_listener_label">Melanta – contexto de notificações</string>
+</resources>
