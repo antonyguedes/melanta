@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import com.melanta.feature.agent.loop.ModelPreparer
 
 data class AgentUiState(
     val agent: AgentState,
@@ -33,7 +35,16 @@ class AgentViewModel @Inject constructor(
     private val modelManager: ModelManager,
     store: ModelStore,
     bridge: AccessibilityBridge,
+    preparer: ModelPreparer,
 ) : ViewModel() {
+
+    init {
+        // Carrega o modelo enquanto o usuário digita a tarefa: some a espera de segundos no primeiro passo.
+        // Se nenhuma tarefa começar, o ModelManager descarrega sozinho depois de 60 s.
+        if (modelManager.preferredModel() != null) {
+            viewModelScope.launch { runCatching { preparer.prepare() } }
+        }
+    }
 
     val state: StateFlow<AgentUiState> = combine(
         controller.state,

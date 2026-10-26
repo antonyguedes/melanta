@@ -29,12 +29,33 @@ sealed interface IntentSpec {
     data class Alarm(val hour: Int, val minute: Int, val label: String?) : IntentSpec
     data class Timer(val seconds: Int, val label: String? = null) : IntentSpec
     data class Url(val url: String) : IntentSpec
-    data class Dial(val number: String) : IntentSpec
+
+    /** [target] é um número ou o nome de um contato. Só abre o discador: ligar é sempre um toque do usuário. */
+    data class Dial(val target: String) : IntentSpec
     data class WebSearch(val query: String) : IntentSpec
 
     /** Abre o formulário de novo contato já preenchido; salvar continua sendo um toque na tela. */
     data class AddContact(val name: String, val phone: String?) : IntentSpec
+
+    /** Página (ou painel) de Configurações; evita navegar pelos menus. */
+    data class Settings(val page: SettingsPage) : IntentSpec
+
+    /** Abre o app de SMS com o texto preenchido. Enviar é um toque na tela (e pede confirmação). */
+    data class Sms(val recipient: String, val text: String) : IntentSpec
+
+    /** Abre a conversa do WhatsApp com o texto preenchido (wa.me). Enviar é um toque na tela. */
+    data class WhatsApp(val recipient: String, val text: String) : IntentSpec
+
+    data class Email(val to: String, val subject: String, val body: String) : IntentSpec
+
+    /** Abre o formulário de evento da agenda preenchido; salvar é um toque na tela. */
+    data class Event(val title: String, val start: java.time.LocalDateTime) : IntentSpec
+
+    /** Inicia a navegação até [destination] no app de mapas. */
+    data class Navigate(val destination: String) : IntentSpec
 }
+
+enum class SettingsPage { Wifi, Internet, Bluetooth, Display, Sound, Battery, Location, Apps, Notifications, Storage, Airplane, DateTime, Language }
 
 sealed interface ActionResult {
     data object Ok : ActionResult

@@ -33,9 +33,14 @@ data class ScreenSnapshot(
     val screenBounds: Bounds,
     /** Elementos descartados pelo limite de [ScreenParser.MAX_ELEMENTS]. */
     val droppedElements: Int = 0,
+    /**
+     * Título de uma janela no topo que o serviço não consegue ler (ex.: pedido de permissão do sistema,
+     * marcado como sensível). Só o usuário pode respondê-la.
+     */
+    val protectedWindow: String? = null,
 ) {
     /** Muda quando a tela muda; usado na detecção de loop (mesma ação + mesma tela). */
-    val hash: Int = (packageName + "\n" + elements.joinToString("\n") { it.line() }).hashCode()
+    val hash: Int = (packageName + "\n" + protectedWindow + "\n" + elements.joinToString("\n") { it.line() }).hashCode()
 
     fun byId(id: Int): UiElement? = elements.firstOrNull { it.id == id }
 

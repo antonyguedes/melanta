@@ -103,6 +103,7 @@ class PlaygroundViewModel @Inject constructor(
             task = current.task,
             history = current.history.lines().filter { it.isNotBlank() },
             screen = scenario.screenContext(current.screen),
+            now = EvalScenarios.NOW,
         )
         run.update { it.copy(outcome = null, liveOutput = "", liveAttempt = 0) }
         val outcome = generator.decide(input, current.constrained) { attempt, text ->
@@ -121,6 +122,7 @@ class PlaygroundViewModel @Inject constructor(
                     task = scenario.task,
                     history = scenario.history,
                     screen = scenario.screenContext(),
+                    now = EvalScenarios.NOW,
                 )
                 run.update { it.copy(liveOutput = "", liveAttempt = 0) }
                 val outcome = generator.decide(input, form.value.constrained) { attempt, text ->

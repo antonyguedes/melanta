@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.melanta.core.automation.notifications.NotificationBuffer
+import com.melanta.feature.agent.AgentController
 import com.melanta.feature.agent.debug.ManualActionRunner
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -35,6 +36,8 @@ class AutomationDebugReceiver : BroadcastReceiver() {
                     ACTION_DUMP -> ManualActionRunner.dump(runner.snapshot()) +
                         notifications.recentLines().takeIf { it.isNotEmpty() }?.joinToString(" | ", "\nNOTIFS: ").orEmpty()
                     ACTION_EXEC -> intent.getStringExtra(EXTRA_JSON)?.let { runner.run(it).describe() } ?: "faltou --es json"
+                    ACTION_CONFIRM -> entryPoint.agentController().confirm(true).let { "confirmação: permitir" }
+                    ACTION_DENY -> entryPoint.agentController().confirm(false).let { "confirmação: negar" }
                     else -> "ação desconhecida"
                 }
             } catch (e: Exception) {
@@ -51,12 +54,15 @@ class AutomationDebugReceiver : BroadcastReceiver() {
     internal interface DebugEntryPoint {
         fun manualActionRunner(): ManualActionRunner
         fun notificationBuffer(): NotificationBuffer
+        fun agentController(): AgentController
     }
 
     private companion object {
         const val TAG = "MelantaDebug"
         const val ACTION_DUMP = "com.melanta.debug.DUMP"
         const val ACTION_EXEC = "com.melanta.debug.EXEC"
+        const val ACTION_CONFIRM = "com.melanta.debug.CONFIRM"
+        const val ACTION_DENY = "com.melanta.debug.DENY"
         const val EXTRA_JSON = "json"
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }

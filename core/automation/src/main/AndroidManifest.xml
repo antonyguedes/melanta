@@ -3,6 +3,8 @@
 
     <!-- Ação INTENT/alarm. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- Opcional: ligar e mandar mensagens pelo nome do contato ("liga para a mãe"). -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <!--
         Visibilidade de pacotes (Android 11+).
@@ -36,6 +38,24 @@
             <action android:name="android.intent.action.INSERT" />
             <data android:mimeType="vnd.android.cursor.dir/raw_contact" />
         </intent>
+        <intent>
+            <action android:name="android.intent.action.INSERT" />
+            <data android:mimeType="vnd.android.cursor.dir/event" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.google.android.apps.maps" />
     </queries>
 
     <application>

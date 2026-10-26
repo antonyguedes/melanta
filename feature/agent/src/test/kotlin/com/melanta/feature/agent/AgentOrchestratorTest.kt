@@ -64,6 +64,7 @@ class AgentOrchestratorTest {
         preparer: ModelPreparer = ModelPreparer { },
         actionResult: ActionResult = ActionResult.Ok,
         reasonerGate: CompletableDeferred<Unit>? = null,
+        onDecide: (PromptInput) -> Unit = {},
     ): AgentOrchestrator {
         var perceived = 0
         var decided = 0
@@ -71,7 +72,8 @@ class AgentOrchestratorTest {
             override suspend fun snapshot() = screens(perceived++)
             override fun recentNotifications() = emptyList<String>()
         }
-        val reasoner = ActionReasoner { _: PromptInput ->
+        val reasoner = ActionReasoner { input: PromptInput ->
+            onDecide(input)
             reasonerGate?.await()
             outcome(decisions[minOf(decided++, decisions.lastIndex)])
         }
@@ -93,20 +95,51 @@ class AgentOrchestratorTest {
     private fun begin() = assertTrue(controller.start(task))
 
     @Test
-    fun `caminho feliz executa a acao e conclui com a mensagem do modelo`() = runTest {
+    fun `intent terminal conclui sozinha, sem outra chamada ao modelo`() = runTest {
         begin()
         orchestrator(
             screens = { screen("launcher", "Relógio", hashSalt = it) },
             decisions = listOf(
                 """{"thought":"alarme","tool":"intent","args":{"kind":"alarm","value":"07:00"}}""",
-                """{"thought":"feito","tool":"done","args":{"ok":true,"msg":"Alarme criado para 7h."}}""",
+                """{"thought":"nunca chamado","tool":"back","args":{}}""",
             ),
         ).run(task)
 
-        assertEquals(AgentState.Finished(task, "Alarme criado para 7h."), controller.state.value)
+        assertEquals(AgentState.Finished(task, "Alarme criado para 07:00."), controller.state.value)
         assertEquals(listOf<AgentAction>(AgentAction.LaunchIntent(IntentSpec.Alarm(7, 0, null))), executed)
-        assertEquals(listOf("Criar alarme para 07:00", "Concluir"), controller.steps.value.map { it.action })
+        assertEquals(listOf("Criar alarme para 07:00"), controller.steps.value.map { it.action })
+    }
+
+    @Test
+    fun `caminho com varios passos conclui com a mensagem do modelo`() = runTest {
+        begin()
+        orchestrator(
+            screens = { screen("com.whatsapp", "Ana", "edit:Mensagem", hashSalt = it) },
+            decisions = listOf(
+                """{"thought":"abrir conversa","tool":"click","args":{"id":1}}""",
+                """{"thought":"feito","tool":"done","args":{"ok":true,"msg":"Conversa aberta."}}""",
+            ),
+        ).run(task)
+
+        assertEquals(AgentState.Finished(task, "Conversa aberta."), controller.state.value)
+        assertEquals(listOf("Tocar em “Ana”", "Concluir"), controller.steps.value.map { it.action })
         assertTrue(controller.steps.value.all { it.status == AgentStep.Status.Done })
+    }
+
+    @Test
+    fun `toque sem efeito aparece no historico enviado ao modelo`() = runTest {
+        begin()
+        val prompts = mutableListOf<PromptInput>()
+        orchestrator(
+            screens = { screen("com.app", "Botão") },
+            decisions = listOf(
+                """{"thought":"tocar","tool":"click","args":{"id":1}}""",
+                """{"thought":"desistir","tool":"done","args":{"ok":false,"msg":"Nada acontece."}}""",
+            ),
+            onDecide = { prompts += it },
+        ).run(task)
+
+        assertEquals(listOf("click \"Botão\" -> ok, but the SCREEN did not change"), prompts[1].history)
     }
 
     @Test
@@ -153,6 +186,139 @@ class AgentOrchestratorTest {
 
         assertEquals(AgentState.Finished(task, "Mensagem enviada."), controller.state.value)
         assertEquals(1, executed.size)
+    }
+
+    @Test
+    fun `janela protegida pausa para o usuario responder e depois continua`() = runTest {
+        begin()
+        val decided = mutableListOf<PromptInput>()
+        val agent = orchestrator(
+            screens = { if (it == 0) ScreenSnapshot.empty(Bounds(0, 0, 1080, 2400)).copy(protectedWindow = "Permitir notificações?") else screen("com.google.android.youtube", "Início") },
+            decisions = listOf("""{"thought":"aberto","tool":"done","args":{"ok":true,"msg":"YouTube aberto."}}"""),
+            onDecide = { decided += it },
+        )
+        val job = launch { agent.run(task) }
+        runCurrent()
+        val awaiting = controller.state.value as AgentState.AwaitingConfirmation
+        assertTrue(awaiting.description, "Permitir notificações?" in awaiting.description)
+        assertTrue(decided.isEmpty())
+
+        controller.confirm(true)
+        advanceUntilIdle()
+        job.join()
+
+        assertEquals(AgentState.Finished(task, "YouTube aberto."), controller.state.value)
+        assertEquals(1, decided.size)
+    }
+
+    @Test
+    fun `janela protegida que nao some encerra depois de pedir duas vezes`() = runTest {
+        begin()
+        val agent = orchestrator(
+            screens = { ScreenSnapshot.empty(Bounds(0, 0, 1080, 2400)).copy(protectedWindow = "Permitir?") },
+            decisions = listOf("""{"thought":"nunca","tool":"back","args":{}}"""),
+        )
+        val job = launch { agent.run(task) }
+        repeat(2) {
+            runCurrent()
+            controller.confirm(true)
+        }
+        advanceUntilIdle()
+        job.join()
+
+        assertTrue(controller.state.value.toString(), controller.state.value is AgentState.Failed)
+        assertTrue(executed.isEmpty())
+    }
+
+    @Test
+    fun `done logo apos abrir formulario e rejeitado ate tocar em salvar`() = runTest {
+        begin()
+        val histories = mutableListOf<List<String>>()
+        orchestrator(
+            screens = { screen("com.google.android.contacts", "Salvar", "edit:Nome", hashSalt = it) },
+            decisions = listOf(
+                """{"thought":"contato","tool":"intent","args":{"kind":"add_contact","value":"Jose | +5524987778990"}}""",
+                """{"thought":"pronto?","tool":"done","args":{"ok":true,"msg":"Contato criado."}}""",
+                """{"thought":"salvar","tool":"click","args":{"id":1}}""",
+                """{"thought":"pronto","tool":"done","args":{"ok":true,"msg":"Contato criado."}}""",
+            ),
+            onDecide = { histories += it.history.toList() },
+        ).run(task)
+
+        assertEquals(AgentState.Finished(task, "Contato “Jose” salvo."), controller.state.value)
+        assertEquals("""intent add_contact Jose | +5524987778990 -> ok, next: tap "Salvar"""", histories[1].single())
+        assertTrue(histories.toString(), histories[2].last().startsWith("done -> rejected"))
+        assertEquals(2, executed.size)
+    }
+
+    @Test
+    fun `done insistente sem enviar termina como falha`() = runTest {
+        begin()
+        orchestrator(
+            screens = { screen("com.google.android.apps.messaging", "Enviar", hashSalt = it) },
+            decisions = listOf(
+                """{"thought":"sms","tool":"intent","args":{"kind":"sms","value":"11999998888|oi"}}""",
+                """{"thought":"pronto","tool":"done","args":{"ok":true,"msg":"SMS enviado."}}""",
+            ),
+        ).run(task)
+
+        val state = controller.state.value
+        assertTrue(state.toString(), state is AgentState.Failed && "Enviar" in state.reason)
+    }
+
+    @Test
+    fun `toque em interruptor informa o novo estado no historico`() = runTest {
+        begin()
+        fun wifi(on: Boolean) = ScreenSnapshot(
+            packageName = "com.android.settings",
+            title = null,
+            elements = listOf(UiElement(1, "sw", "Wi-Fi", listOfNotNull("click", "checked".takeIf { on }, "unchecked".takeIf { !on }), Bounds(900, 300, 1040, 400), null, 4, null)),
+            screenBounds = Bounds(0, 0, 1080, 2400),
+        )
+        val histories = mutableListOf<List<String>>()
+        orchestrator(
+            screens = { wifi(on = it == 0) },
+            decisions = listOf(
+                """{"thought":"desligar","tool":"click","args":{"id":1}}""",
+                """{"thought":"pronto","tool":"done","args":{"ok":true,"msg":"Wi-Fi desligado."}}""",
+            ),
+            onDecide = { histories += it.history.toList() },
+        ).run(task)
+
+        assertEquals("""click "Wi-Fi" -> ok, switch is now OFF""", histories[1].single())
+    }
+
+    private fun wifiPanel(on: Boolean) = ScreenSnapshot(
+        packageName = "com.android.settings",
+        title = null,
+        elements = listOf(UiElement(1, "sw", "Wi‑Fi", listOf("click", if (on) "checked" else "unchecked"), Bounds(900, 300, 1040, 400), null, 4, null)),
+        screenBounds = Bounds(0, 0, 1080, 2400),
+    )
+
+    @Test
+    fun `interruptor do pedido no estado pedido conclui sem novo toque`() = runTest {
+        val wifiTask = "Desliga o wi-fi"
+        assertTrue(controller.start(wifiTask))
+        orchestrator(
+            screens = { wifiPanel(on = it == 0) },
+            decisions = listOf("""{"thought":"desligar","tool":"click","args":{"id":1}}"""),
+        ).run(wifiTask)
+
+        assertEquals(AgentState.Finished(wifiTask, "Wi‑Fi desligado."), controller.state.value)
+        assertEquals(1, executed.size)
+    }
+
+    @Test
+    fun `interruptor ja no estado pedido nao e tocado`() = runTest {
+        val wifiTask = "Desliga o wi-fi"
+        assertTrue(controller.start(wifiTask))
+        orchestrator(
+            screens = { wifiPanel(on = false) },
+            decisions = listOf("""{"thought":"desligar","tool":"click","args":{"id":1}}"""),
+        ).run(wifiTask)
+
+        assertEquals(AgentState.Finished(wifiTask, "Wi‑Fi já estava desligado."), controller.state.value)
+        assertTrue(executed.isEmpty())
     }
 
     @Test
@@ -231,7 +397,7 @@ class AgentOrchestratorTest {
         orchestrator(
             screens = { screen("launcher", "Relógio", hashSalt = it) },
             decisions = listOf(
-                """{"thought":"abrir","tool":"intent","args":{"kind":"open_app","value":"com.google.android.calendar"}}""",
+                """{"thought":"abrir","tool":"intent","args":{"kind":"open_app","value":"Agenda"}}""",
                 """{"thought":"feito","tool":"done","args":{"ok":true,"msg":"Alarm set."}}""",
             ),
             actionResult = ActionResult.Error("App não encontrado"),
@@ -282,11 +448,10 @@ class AgentOrchestratorTest {
             decisions = listOf(
                 """{"thought":"alarme","tool":"intent","args":{"kind":"alarm","value":"25:00"}}""",
                 """{"thought":"alarme","tool":"intent","args":{"kind":"alarm","value":"07:00"}}""",
-                """{"thought":"feito","tool":"done","args":{"ok":true,"msg":"Pronto."}}""",
             ),
         ).run(task)
 
-        assertEquals(AgentState.Finished(task, "Pronto."), controller.state.value)
+        assertEquals(AgentState.Finished(task, "Alarme criado para 07:00."), controller.state.value)
         assertTrue(controller.steps.value.first().status is AgentStep.Status.Failed)
         assertEquals(1, executed.size)
     }

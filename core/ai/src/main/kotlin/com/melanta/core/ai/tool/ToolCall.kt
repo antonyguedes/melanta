@@ -26,5 +26,17 @@ object Tools {
 
     val SCROLL_DIRECTIONS = listOf("up", "down", "left", "right")
 
-    val INTENT_KINDS = listOf("open_app", "alarm", "timer", "url", "dial", "web_search", "add_contact")
+    val INTENT_KINDS = listOf(
+        "open_app", "alarm", "timer", "url", "dial", "web_search", "add_contact",
+        "settings", "sms", "whatsapp", "email", "event", "navigate",
+    )
+
+    /** Intents cujo valor tem várias partes ("Destinatário | texto"), na ordem dos campos aceitos. */
+    val MULTI_FIELD_INTENTS: Map<String, List<List<String>>> = mapOf(
+        "add_contact" to listOf(listOf("name"), listOf("phone", "number")),
+        "sms" to listOf(listOf("to", "recipient", "contact", "name", "number", "phone"), listOf("text", "message", "body")),
+        "whatsapp" to listOf(listOf("to", "recipient", "contact", "name", "number", "phone"), listOf("text", "message", "body")),
+        "email" to listOf(listOf("to", "recipient", "email"), listOf("subject", "title"), listOf("body", "text", "message")),
+        "event" to listOf(listOf("title", "name"), listOf("datetime", "start", "date", "time")),
+    )
 }

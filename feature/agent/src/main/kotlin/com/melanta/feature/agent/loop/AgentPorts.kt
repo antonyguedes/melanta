@@ -59,7 +59,7 @@ class DefaultScreenPerception @Inject constructor(
     override suspend fun snapshot(): ScreenSnapshot {
         repeat(EMPTY_SCREEN_RETRIES) {
             val snapshot = reader.snapshot()
-            if (snapshot.elements.isNotEmpty()) return snapshot
+            if (snapshot.elements.isNotEmpty() || snapshot.protectedWindow != null) return snapshot
             delay(EMPTY_SCREEN_RETRY_MS)
         }
         return reader.snapshot()

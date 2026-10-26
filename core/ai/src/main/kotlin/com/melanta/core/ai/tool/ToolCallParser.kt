@@ -162,12 +162,10 @@ class ToolCallParser @Inject constructor() {
             if (kind !in Tools.INTENT_KINDS) {
                 throw InvalidArgs(ParseError.InvalidArgs, "Unknown intent kind \"$kind\". Use: ${Tools.INTENT_KINDS.joinToString("|")}.")
             }
-            // add_contact às vezes vem com nome e telefone em campos separados: junta no formato "Nome | telefone".
-            val contact = if (kind == "add_contact") {
-                listOfNotNull(args.string("name"), args.string("phone") ?: args.string("number"))
-                    .takeIf { it.size == 2 }?.joinToString(" | ")
-            } else {
-                null
+            // Intents de várias partes às vezes vêm em campos separados: junta no formato "a | b | c".
+            val contact = Tools.MULTI_FIELD_INTENTS[kind]?.let { fields ->
+                val parts = fields.map { keys -> keys.firstNotNullOfOrNull { args.string(it) } }
+                if (parts.count { it != null } >= 2) parts.joinToString(" | ") { it.orEmpty() } else null
             }
             val value = (contact ?: VALUE_KEYS.firstNotNullOfOrNull { args.string(it) })?.takeIf { it.isNotBlank() }
                 ?: throw InvalidArgs(ParseError.InvalidArgs, "intent needs a non-empty \"value\".")
@@ -283,6 +281,12 @@ class ToolCallParser @Inject constructor() {
             listOf("dial", "call", "phone_call").forEach { put(it, Alias(Tools.INTENT, "dial")) }
             listOf("web_search", "search", "google").forEach { put(it, Alias(Tools.INTENT, "web_search")) }
             listOf("add_contact", "create_contact", "new_contact", "save_contact").forEach { put(it, Alias(Tools.INTENT, "add_contact")) }
+            listOf("settings", "open_settings").forEach { put(it, Alias(Tools.INTENT, "settings")) }
+            listOf("sms", "send_sms", "text_message").forEach { put(it, Alias(Tools.INTENT, "sms")) }
+            listOf("whatsapp", "send_whatsapp").forEach { put(it, Alias(Tools.INTENT, "whatsapp")) }
+            listOf("email", "send_email", "mail").forEach { put(it, Alias(Tools.INTENT, "email")) }
+            listOf("event", "create_event", "add_event", "calendar_event").forEach { put(it, Alias(Tools.INTENT, "event")) }
+            listOf("navigate", "directions", "navigation").forEach { put(it, Alias(Tools.INTENT, "navigate")) }
             listOf("back", "go_back", "navigate_back", "press_back").forEach { put(it, Alias(Tools.BACK)) }
             listOf("done", "finish", "finished", "answer", "complete", "stop", "end", "respond", "reply")
                 .forEach { put(it, Alias(Tools.DONE)) }
@@ -295,6 +299,9 @@ class ToolCallParser @Inject constructor() {
             "call" to "dial", "phone" to "dial",
             "link" to "url", "open_url" to "url", "browser" to "url", "website" to "url",
             "contact" to "add_contact", "create_contact" to "add_contact", "new_contact" to "add_contact",
+            "setting" to "settings", "open_settings" to "settings", "message" to "sms", "text" to "sms", "send_sms" to "sms",
+            "mail" to "email", "send_email" to "email", "calendar" to "event", "create_event" to "event",
+            "maps" to "navigate", "directions" to "navigate", "navigation" to "navigate", "route" to "navigate",
         )
     }
 }

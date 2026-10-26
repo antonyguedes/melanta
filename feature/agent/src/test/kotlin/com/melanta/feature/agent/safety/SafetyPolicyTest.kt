@@ -71,6 +71,17 @@ class SafetyPolicyTest {
     }
 
     @Test
+    fun `telefone com DDI ou numero que nao passa no Luhn nao e cartao`() {
+        assertTrue(SafetyPolicy.looksLikeCardNumber("5500-0000-0000-0004"))
+        assertTrue(SafetyPolicy.looksLikeCardNumber("cartão 378282246310005"))
+        listOf("+55 24 987778990", "+5511987654321", "4111 1111 1111 1112", "11 98765-4321").forEach {
+            assertTrue(it, !SafetyPolicy.looksLikeCardNumber(it))
+        }
+        val phone = AgentAction.Type(Target.ById(1), "+55 24 987778990", submit = false)
+        assertEquals(SafetyDecision.Allow, policy.evaluate(phone, screen("com.google.android.contacts", "Telefone")))
+    }
+
+    @Test
     fun `enter em campo de mensagem pede confirmacao, em busca nao`() {
         val send = AgentAction.Type(Target.ById(1), "chego em 10 min", submit = true)
         assertTrue(policy.evaluate(send, screen("com.whatsapp", "Mensagem")) is SafetyDecision.RequireConfirmation)

@@ -24,21 +24,21 @@ class ScreenReader @Inject constructor(
     suspend fun snapshot(): ScreenSnapshot = withContext(dispatchers.default) {
         withTimeout(READ_TIMEOUT_MS) {
             val service = bridge.service.value ?: throw AccessibilityUnavailableException()
-            val windows = service.windows.mapNotNull(::toUiWindow).ifEmpty {
-                // Sem flagRetrieveInteractiveWindows efetivo, cai para a janela ativa.
-                listOfNotNull(
+            val windows = service.windows.map(::toUiWindow).takeIf { list -> list.any { it.root != null } }
+                ?: listOfNotNull(
+                    // Sem flagRetrieveInteractiveWindows efetivo, cai para a janela ativa.
                     service.rootInActiveWindow?.let { root ->
                         val node = AccessibilityUiNode(root)
                         UiWindow(WindowKind.Application, 0, root.packageName?.toString(), null, node.bounds, node)
                     },
-                )
-            }
+                ).ifEmpty { service.windows.map(::toUiWindow) }
             parser.parse(windows, context.packageName, screenBounds())
         }
     }
 
-    private fun toUiWindow(window: AccessibilityWindowInfo): UiWindow? {
-        val root = window.root ?: return null
+    /** `root` nulo = conteúdo escondido de serviços que não são ferramenta de acessibilidade (permissões, etc.). */
+    private fun toUiWindow(window: AccessibilityWindowInfo): UiWindow {
+        val root = window.root
         val rect = Rect().also(window::getBoundsInScreen)
         val kind = when (window.type) {
             AccessibilityWindowInfo.TYPE_APPLICATION -> WindowKind.Application
@@ -50,10 +50,10 @@ class ScreenReader @Inject constructor(
         return UiWindow(
             kind = kind,
             layer = window.layer,
-            packageName = root.packageName?.toString(),
+            packageName = root?.packageName?.toString(),
             title = window.title?.toString(),
             bounds = Bounds(rect.left, rect.top, rect.right, rect.bottom),
-            root = AccessibilityUiNode(root),
+            root = root?.let(::AccessibilityUiNode),
         )
     }
 

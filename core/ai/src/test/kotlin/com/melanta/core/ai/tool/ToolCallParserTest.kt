@@ -104,7 +104,7 @@ class ToolCallParserTest {
         Fail("""{"tool":"click","args":{}}""", ParseError.InvalidArgs),
         Fail("""{"tool":"type","args":{"id":2}}""", ParseError.InvalidArgs),
         Fail("""{"tool":"intent","args":{"kind":"alarm"}}""", ParseError.InvalidArgs),
-        Fail("""{"tool":"intent","args":{"kind":"sms","value":"oi"}}""", ParseError.InvalidArgs),
+        Fail("""{"tool":"intent","args":{"kind":"fax","value":"oi"}}""", ParseError.InvalidArgs),
         Fail("""{"tool":"click","args":{"id":42}}""", ParseError.UnknownId, ParseContext(validIds = setOf(1, 2, 3))),
         Fail("""{"tool":"type","args":{"id":0,"text":"x"}}""", ParseError.UnknownId, ParseContext(validIds = setOf(1, 2, 3))),
         Fail("""{"tool":"type","args":{"id":3,"text":"x"}}""", ParseError.WrongTarget, ParseContext(setOf(1, 2, 3), ScreenTargets(setOf(1, 3), setOf(2), emptySet()))),

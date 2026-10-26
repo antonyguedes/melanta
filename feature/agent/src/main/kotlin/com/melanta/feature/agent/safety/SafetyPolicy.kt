@@ -55,7 +55,7 @@ class SafetyPolicy @Inject constructor() {
                 when {
                     SENSITIVE_FIELD.containsMatchIn(field) ->
                         SafetyDecision.Block("O agente nunca digita senhas, PINs ou dados de cartão.")
-                    CARD_NUMBER.containsMatchIn(action.text.filter { it.isDigit() || it == ' ' }) ->
+                    looksLikeCardNumber(action.text) ->
                         SafetyDecision.Block("O agente nunca digita dados de cartão.")
                     action.submit && !SEARCH_FIELD.containsMatchIn(field) ->
                         SafetyDecision.RequireConfirmation("Enviar \"${action.text.take(MAX_QUOTE)}\"")
@@ -87,6 +87,10 @@ class SafetyPolicy @Inject constructor() {
         const val LOOP_REPEATS = 3
         const val MAX_CONSECUTIVE_ERRORS = 3
         const val CONFIRMATION_TIMEOUT_MS = 60_000L
+        /** Vezes que o agente pede para o usuário responder uma janela protegida antes de desistir. */
+        const val MAX_HANDOFFS = 2
+        /** `done` rejeitados por faltar o toque em Enviar/Salvar antes de encerrar como falha. */
+        const val MAX_PREMATURE_DONES = 2
     }
 
     companion object {
@@ -134,8 +138,18 @@ class SafetyPolicy @Inject constructor() {
 
         private val SEARCH_FIELD = words("pesquisar", "pesquisa", "buscar", "busca", "search", "procurar", "url", "endereco")
 
-        /** 13 a 19 dígitos seguidos (com espaços opcionais), o formato de número de cartão. */
-        private val CARD_NUMBER = Regex("""(\d[ ]?){13,19}""")
+        /** 14 a 19 dígitos seguidos (espaços ou hífens opcionais); o `+` capturado separa telefones internacionais. */
+        private val CARD_NUMBER = Regex("""\+?\d(?:[ -]?\d){13,18}""")
+
+        /** Número de cartão = sequência de 14 a 19 dígitos que passa no Luhn e não começa com `+` (telefone). */
+        internal fun looksLikeCardNumber(text: String): Boolean = CARD_NUMBER.findAll(text).any { match ->
+            !match.value.startsWith('+') && luhn(match.value.filter(Char::isDigit))
+        }
+
+        private fun luhn(digits: String): Boolean = digits.reversed().mapIndexed { i, c ->
+            val d = c.digitToInt()
+            if (i % 2 == 1) (d * 2).let { if (it > 9) it - 9 else it } else d
+        }.sum() % 10 == 0
 
         fun normalize(text: String): String =
             Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")

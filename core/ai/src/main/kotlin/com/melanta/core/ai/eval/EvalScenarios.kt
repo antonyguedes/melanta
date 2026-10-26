@@ -31,6 +31,10 @@ data class EvalScenario(
 
 object EvalScenarios {
 
+    /** Data e hora fixas nos cenários, para "amanhã às 15h" ter uma resposta única. */
+    const val NOW = "2026-10-26 13:05, Monday"
+    private const val LAUNCHER = "com.google.android.apps.nexuslauncher"
+
     val all = listOf(
         EvalScenario(
             name = "Alarme",
@@ -93,7 +97,7 @@ object EvalScenarios {
                 [5] list scroll
             """.trimIndent(),
             expectedTool = Tools.CLICK,
-            judge = { it.isClick(1) },
+            judge = { it.isClick(1) || it.isSettings("wi") },
         ),
         EvalScenario(
             name = "Tarefa concluída",
@@ -232,6 +236,128 @@ object EvalScenarios {
             judge = { it.isClick(2) },
         ),
         EvalScenario(
+            name = "Desligar Wi-Fi",
+            task = "desliga o wi-fi",
+            history = emptyList(),
+            packageName = LAUNCHER,
+            title = null,
+            screen = """
+                [1] txt "Configurações" click
+                [2] txt "Chrome" click
+                [3] edit "Pesquisar" click
+            """.trimIndent(),
+            expectedTool = Tools.INTENT,
+            judge = { it.isSettings("wi") },
+        ),
+        EvalScenario(
+            name = "Painel do Wi-Fi",
+            task = "desliga o wi-fi",
+            history = listOf("intent settings wifi -> ok"),
+            packageName = "com.android.settings",
+            title = "Wi-Fi",
+            screen = """
+                [1] txt "Wi-Fi"
+                [2] sw "Wi-Fi" click checked
+                [3] item "AndroidWifi Conectado" click
+                [4] btn "Concluído" click
+            """.trimIndent(),
+            expectedTool = Tools.CLICK,
+            judge = { it.isClick(2) },
+        ),
+        EvalScenario(
+            name = "Mandar WhatsApp",
+            task = "manda um zap pra Ana dizendo que chego em 10 min",
+            history = emptyList(),
+            packageName = LAUNCHER,
+            title = null,
+            screen = """
+                [1] txt "WhatsApp" click
+                [2] txt "Mensagens" click
+            """.trimIndent(),
+            expectedTool = Tools.INTENT,
+            judge = { (it.isIntent("whatsapp") && it.value().contains("Ana") && it.value().contains("10")) || it.isIntent("open_app") || it.isClick(1) },
+        ),
+        EvalScenario(
+            name = "Enviar WhatsApp",
+            task = "manda um zap pra Ana dizendo que chego em 10 min",
+            history = listOf("intent whatsapp Ana | chego em 10 min -> ok"),
+            packageName = "com.whatsapp",
+            title = "Ana",
+            screen = """
+                [1] btn "Voltar" click
+                [2] txt "Ana"
+                [3] edit "chego em 10 min" click focused
+                [4] btn "Enviar" click
+            """.trimIndent(),
+            expectedTool = Tools.CLICK,
+            judge = { it.isClick(4) },
+        ),
+        EvalScenario(
+            name = "SMS por número",
+            task = "manda sms pro 11 99999-8888 dizendo oi, tudo bem?",
+            history = emptyList(),
+            packageName = LAUNCHER,
+            title = null,
+            screen = """
+                [1] txt "Mensagens" click
+                [2] txt "Telefone" click
+            """.trimIndent(),
+            expectedTool = Tools.INTENT,
+            judge = { it.isIntent("sms") && it.value().filter(Char::isDigit).contains("999998888") && it.value().contains("oi", ignoreCase = true) },
+        ),
+        EvalScenario(
+            name = "Evento na agenda",
+            task = "marca dentista amanhã às 15h na agenda",
+            history = emptyList(),
+            packageName = LAUNCHER,
+            title = null,
+            screen = """
+                [1] txt "Agenda" click
+                [2] txt "Relógio" click
+            """.trimIndent(),
+            expectedTool = Tools.INTENT,
+            judge = { it.isIntent("event") && it.value().contains("dentista", ignoreCase = true) && Regex("2026-10-27 15|amanh|tomorrow", RegexOption.IGNORE_CASE).containsMatchIn(it.value()) },
+        ),
+        EvalScenario(
+            name = "Rota",
+            task = "me leva até a Avenida Paulista",
+            history = emptyList(),
+            packageName = LAUNCHER,
+            title = null,
+            screen = """
+                [1] txt "Maps" click
+                [2] txt "Chrome" click
+            """.trimIndent(),
+            expectedTool = Tools.INTENT,
+            judge = { it.isIntent("navigate") && it.value().contains("Paulista", ignoreCase = true) },
+        ),
+        EvalScenario(
+            name = "Ligar pelo nome",
+            task = "liga pra minha mãe",
+            history = emptyList(),
+            packageName = LAUNCHER,
+            title = null,
+            screen = """
+                [1] txt "Telefone" click
+                [2] txt "Contatos" click
+            """.trimIndent(),
+            expectedTool = Tools.INTENT,
+            judge = { it.isIntent("dial") && Regex("m[ãa]e|mom|mother", RegexOption.IGNORE_CASE).containsMatchIn(it.value()) },
+        ),
+        EvalScenario(
+            name = "E-mail",
+            task = "manda um email pra ana@exemplo.com com assunto Reunião dizendo que confirmo presença",
+            history = emptyList(),
+            packageName = LAUNCHER,
+            title = null,
+            screen = """
+                [1] txt "Gmail" click
+                [2] txt "Chrome" click
+            """.trimIndent(),
+            expectedTool = Tools.INTENT,
+            judge = { it.isIntent("email") && it.value().contains("ana@exemplo.com") && it.value().contains("Reuni", ignoreCase = true) },
+        ),
+        EvalScenario(
             name = "Modo avião",
             task = "liga o modo avião",
             history = listOf("intent open_app Configurações -> ok"),
@@ -244,7 +370,7 @@ object EvalScenarios {
                 [4] list scroll
             """.trimIndent(),
             expectedTool = Tools.CLICK,
-            judge = { it.isClick(1) },
+            judge = { it.isClick(1) || it.isSettings("avi") || it.isSettings("airplane") },
             holdout = true,
         ),
         EvalScenario(
@@ -338,4 +464,5 @@ object EvalScenarios {
     private fun ToolCall.bool(key: String): Boolean? = args[key]?.jsonPrimitive?.booleanOrNull
     private fun ToolCall.isClick(id: Int) = name == Tools.CLICK && int("id") == id
     private fun ToolCall.isIntent(kind: String) = name == Tools.INTENT && value("kind") == kind
+    private fun ToolCall.isSettings(prefix: String) = isIntent("settings") && value().lowercase().replace("-", "").startsWith(prefix)
 }

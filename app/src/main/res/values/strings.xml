@@ -28,6 +28,8 @@
     <string name="permission_listener_title">Leitor de notificações</string>
     <string name="permission_listener_body">Dá ao agente o contexto das notificações recentes (por exemplo, a última mensagem recebida).</string>
 
+    <string name="permission_contacts_title">Contatos</string>
+    <string name="permission_contacts_body">Permite ligar e mandar mensagens pelo nome (\"liga para a Ana\"). Os contatos são lidos só no aparelho.</string>
     <string name="permission_overlay_title">Sobreposição a outros apps</string>
     <string name="permission_overlay_body">Reserva para o botão flutuante de parada quando a Acessibilidade estiver desligada.</string>
 

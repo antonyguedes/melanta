@@ -62,6 +62,8 @@ data class PromptInput(
     val history: List<String>,
     val screen: ScreenContext,
     val notifications: List<String> = emptyList(),
+    /** Data e hora atuais ("2026-10-26 13:05, Monday"), para o modelo resolver "amanhã às 15h". */
+    val now: String? = null,
 )
 
 /** Orçamento da seção 3.4: contexto de 4096 tokens com teto fixo para tela e saída. */
@@ -93,6 +95,7 @@ class PromptBuilder @Inject constructor() {
     fun build(input: PromptInput, budget: PromptBudget = PromptBudget(), system: String = AgentPrompt.SYSTEM): BuiltPrompt {
         val header = buildString {
             append("TASK: ").append(input.task.trim()).append('\n')
+            input.now?.let { append("NOW: ").append(it).append('\n') }
             val history = input.history.takeLast(budget.maxHistory)
             if (history.isEmpty()) {
                 append("HISTORY: none\n")

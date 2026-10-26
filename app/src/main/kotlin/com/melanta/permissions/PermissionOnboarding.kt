@@ -54,6 +54,11 @@ fun PermissionOnboardingRoute(
         notificationsAsked = true
         viewModel.refresh()
     }
+    var contactsAsked by rememberSaveable { mutableStateOf(false) }
+    val contactsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        contactsAsked = true
+        viewModel.refresh()
+    }
 
     PermissionOnboardingScreen(
         state = state,
@@ -68,6 +73,9 @@ fun PermissionOnboardingRoute(
         },
         onNotificationListener = { PermissionIntents.openNotificationListenerSettings(context) },
         onOverlay = { PermissionIntents.openOverlaySettings(context) },
+        onContacts = {
+            if (!contactsAsked) contactsLauncher.launch(Manifest.permission.READ_CONTACTS) else PermissionIntents.openAppDetails(context)
+        },
         onContinue = onContinue,
     )
 }
@@ -81,6 +89,7 @@ private fun PermissionOnboardingScreen(
     onNotifications: () -> Unit,
     onNotificationListener: () -> Unit,
     onOverlay: () -> Unit,
+    onContacts: () -> Unit,
     onContinue: () -> Unit,
 ) {
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.onboarding_title)) }) }) { padding ->
@@ -125,6 +134,14 @@ private fun PermissionOnboardingScreen(
                 granted = state.notificationListener,
                 actionLabel = R.string.permission_open_settings,
                 onAction = onNotificationListener,
+            )
+            PermissionCard(
+                title = R.string.permission_contacts_title,
+                body = R.string.permission_contacts_body,
+                level = R.string.permission_recommended,
+                granted = state.contacts,
+                actionLabel = R.string.permission_allow,
+                onAction = onContacts,
             )
             PermissionCard(
                 title = R.string.permission_overlay_title,

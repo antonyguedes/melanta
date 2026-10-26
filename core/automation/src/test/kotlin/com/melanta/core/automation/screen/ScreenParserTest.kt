@@ -44,6 +44,41 @@ class ScreenParserTest {
     }
 
     @Test
+    fun `interruptor sem rotulo herda o texto da linha e mostra o estado`() {
+        fun panel(on: Boolean) = FakeNode(
+            bounds = screen,
+            children = listOf(
+                FakeNode(className = "android.widget.TextView", text = "Wi-Fi", bounds = Bounds(40, 100, 1040, 180)),
+                FakeNode(
+                    className = "android.widget.LinearLayout",
+                    isClickable = true,
+                    bounds = Bounds(0, 300, 1080, 450),
+                    children = listOf(FakeNode(className = "android.widget.TextView", text = "Rede", bounds = Bounds(40, 330, 800, 420))),
+                ),
+                FakeNode(className = "android.widget.Switch", isClickable = true, isCheckable = true, isChecked = on, bounds = Bounds(900, 340, 1040, 410)),
+            ),
+        )
+        assertEquals(
+            listOf("""[1] txt "Wi-Fi"""", """[2] item "Rede" click""", """[3] sw "Rede" click checked"""),
+            lines(app(panel(on = true), pkg = "com.android.settings")),
+        )
+        assertEquals("""[3] sw "Rede" click unchecked""", lines(app(panel(on = false), pkg = "com.android.settings"))[2])
+    }
+
+    @Test
+    fun `janela protegida no topo vira protectedWindow`() {
+        val dialog = UiWindow(WindowKind.Application, 2, null, "Allow YouTube to send you notifications?", Bounds(28, 789, 1052, 1610), null)
+        val snapshot = parser.parse(listOf(dialog), "com.melanta", screen)
+        assertEquals("Allow YouTube to send you notifications?", snapshot.protectedWindow)
+        assertTrue(snapshot.elements.isEmpty())
+
+        // Abaixo de um app em tela cheia legível, a janela sem árvore não importa.
+        val hidden = UiWindow(WindowKind.Application, 0, null, "Oculta", Bounds(0, 0, 500, 500), null)
+        val visible = parser.parse(listOf(hidden, app(FakeNode(text = "Oi", bounds = Bounds(0, 0, 500, 100)), layer = 1)), "com.melanta", screen)
+        assertEquals(null, visible.protectedWindow)
+    }
+
+    @Test
     fun `invisiveis, proprio app, teclado e barras pequenas ficam de fora`() {
         val content = FakeNode(
             bounds = screen,
@@ -91,7 +126,7 @@ class ScreenParserTest {
         assertEquals(
             listOf(
                 """[1] sw "Wi-Fi" click checked""",
-                """[2] chk "Lembrar" click""",
+                """[2] chk "Lembrar" click unchecked""",
                 """[3] btn "Enviar" click off""",
                 """[4] tab "Início" click""",
                 """[5] img "Foto de perfil"""",

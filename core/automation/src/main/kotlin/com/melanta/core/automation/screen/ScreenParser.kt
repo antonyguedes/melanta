@@ -8,17 +8,19 @@ import javax.inject.Inject
  * - Lê de cima para baixo (diálogos antes do app embaixo) e para na primeira janela de app em tela cheia.
  * - Ignora o próprio app, o teclado e barras de sistema pequenas (status e navegação).
  * - Funde o texto de filhos não clicáveis no ancestral clicável (uma linha por item de lista).
+ * - Interruptor sem rótulo herda o texto da mesma linha ("Wi-Fi") e sempre mostra o estado.
  * - Deduplica e corta em [MAX_ELEMENTS], descartando primeiro o que tem menor prioridade.
  */
 class ScreenParser @Inject constructor() {
 
     fun parse(windows: List<UiWindow>, ownPackage: String, screen: Bounds): ScreenSnapshot {
         val selected = selectWindows(windows, ownPackage, screen)
+        val protectedWindow = protectedWindowTitle(windows, screen)
         val main = selected.firstOrNull { it.kind == WindowKind.Application } ?: selected.firstOrNull()
-            ?: return ScreenSnapshot.empty(screen)
+            ?: return ScreenSnapshot.empty(screen).copy(protectedWindow = protectedWindow)
 
         val drafts = selected.flatMap { window -> window.root?.let(::collect).orEmpty() }
-        val cleaned = dedupe(dropEmptyContainers(drafts))
+        val cleaned = dedupe(dropEmptyContainers(labelUnnamedToggles(drafts)))
         val kept = cap(cleaned)
         val elements = kept.mapIndexed { index, d ->
             UiElement(index + 1, d.role, d.label(), d.flags, d.bounds, d.viewId, d.priority, d.node)
@@ -29,7 +31,18 @@ class ScreenParser @Inject constructor() {
             elements = elements,
             screenBounds = screen,
             droppedElements = cleaned.size - kept.size,
+            protectedWindow = protectedWindow,
         )
+    }
+
+    /** Janela de app sem árvore legível acima da primeira janela de app em tela cheia que dá para ler. */
+    private fun protectedWindowTitle(windows: List<UiWindow>, screen: Bounds): String? {
+        for (window in windows.sortedByDescending { it.layer }) {
+            if (window.kind != WindowKind.Application) continue
+            if (window.root == null) return window.title?.let(::clean)?.takeIf { it.isNotEmpty() } ?: UNTITLED_PROTECTED
+            if (screen.area > 0 && window.bounds.area.toDouble() / screen.area >= FULL_SCREEN_COVERAGE) return null
+        }
+        return null
     }
 
     private fun selectWindows(windows: List<UiWindow>, ownPackage: String, screen: Bounds): List<UiWindow> {
@@ -65,7 +78,8 @@ class ScreenParser @Inject constructor() {
             var childOwner = owner
 
             if (actionable && !node.bounds.isEmpty) {
-                val draft = Draft(node, roleOf(node), flagsOf(node), priorityOf(node))
+                val role = roleOf(node)
+                val draft = Draft(node, role, flagsOf(node, role), priorityOf(node))
                 ownLabel?.let(draft::append)
                 drafts += draft
                 // Itens de uma lista rolável não são rótulo da lista; os de um botão/linha são.
@@ -82,6 +96,29 @@ class ScreenParser @Inject constructor() {
             for (i in node.childCount - 1 downTo 0) {
                 node.child(i)?.let { stack.addLast(Frame(it, depth + 1, childOwner)) }
             }
+        }
+        return drafts
+    }
+
+    /**
+     * Interruptores de painéis e listas de Configurações costumam vir sem texto, com o rótulo num item
+     * vizinho da mesma linha. Sem nome, o modelo não sabe o que o interruptor controla.
+     */
+    private fun labelUnnamedToggles(drafts: List<Draft>): List<Draft> {
+        for (toggle in drafts) {
+            if (toggle.role !in TOGGLE_ROLES || toggle.hasLabel()) continue
+            val b = toggle.bounds
+            drafts.asSequence()
+                .filter { it !== toggle && it.hasLabel() && it.role !in TOGGLE_ROLES && it.role != "list" }
+                .filter { b.centerY in it.bounds.top..it.bounds.bottom && it.bounds.height <= b.height * ROW_HEIGHT_FACTOR }
+                .minByOrNull { other ->
+                    when {
+                        b in other.bounds -> 0
+                        other.bounds.right <= b.left -> b.left - other.bounds.right
+                        else -> (other.bounds.left - b.right).coerceAtLeast(0)
+                    }
+                }
+                ?.let { toggle.append(it.label()) }
         }
         return drafts
     }
@@ -134,10 +171,12 @@ class ScreenParser @Inject constructor() {
         }
     }
 
-    private fun flagsOf(node: UiNode): List<String> = buildList {
+    private fun flagsOf(node: UiNode, role: String): List<String> = buildList {
         if (node.isClickable || node.isLongClickable) add("click")
         if (node.isFocused) add("focused")
         if (node.isCheckable && node.isChecked) add("checked")
+        // Em abas, a ausência de "checked" basta; em interruptores o estado desligado precisa ser explícito.
+        else if (role in TOGGLE_ROLES) add("unchecked")
         if (!node.isEnabled) add("off")
         if (node.isScrollable) add("scroll")
     }
@@ -173,6 +212,9 @@ class ScreenParser @Inject constructor() {
     companion object {
         const val MAX_ELEMENTS = 60
         const val MAX_LABEL = 40
+        private val TOGGLE_ROLES = setOf("sw", "chk")
+        private const val UNTITLED_PROTECTED = "janela protegida do sistema"
+        private const val ROW_HEIGHT_FACTOR = 4
         private const val MAX_DEPTH = 40
         private const val FULL_SCREEN_COVERAGE = 0.9
         private const val SYSTEM_WINDOW_MIN_COVERAGE = 0.5

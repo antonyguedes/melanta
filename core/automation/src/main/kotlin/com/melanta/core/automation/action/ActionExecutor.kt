@@ -12,16 +12,20 @@ import android.graphics.Path
 import android.net.Uri
 import android.os.Bundle
 import android.provider.AlarmClock
+import android.provider.CalendarContract
 import android.provider.ContactsContract
+import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
 import com.melanta.core.automation.apps.AppResolver
+import com.melanta.core.automation.apps.ContactResolver
 import com.melanta.core.automation.screen.AccessibilityUiNode
 import com.melanta.core.automation.screen.Bounds
 import com.melanta.core.automation.screen.ScreenSnapshot
 import com.melanta.core.automation.service.AccessibilityBridge
 import com.melanta.core.common.DispatcherProvider
+import java.time.ZoneId
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -34,6 +38,7 @@ import kotlinx.coroutines.withContext
 class ActionExecutor @Inject constructor(
     private val bridge: AccessibilityBridge,
     private val appResolver: AppResolver,
+    private val contacts: ContactResolver,
     private val dispatchers: DispatcherProvider,
 ) {
     suspend fun execute(action: AgentAction, snapshot: ScreenSnapshot?): ActionResult = withContext(dispatchers.default) {
@@ -162,12 +167,43 @@ class ActionExecutor @Inject constructor(
                 Intent(Intent.ACTION_VIEW, uri)
             }
             // DIAL só abre o discador com o número: a ligação continua exigindo o toque do usuário.
-            is IntentSpec.Dial -> Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", spec.number, null))
+            is IntentSpec.Dial -> {
+                val number = phoneOf(spec.target).getOrElse { return ActionResult.Error(it.message.orEmpty()) }
+                Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", number, null))
+            }
             is IntentSpec.WebSearch -> Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, spec.query)
             is IntentSpec.AddContact -> Intent(ContactsContract.Intents.Insert.ACTION)
                 .setType(ContactsContract.RawContacts.CONTENT_TYPE)
                 .putExtra(ContactsContract.Intents.Insert.NAME, spec.name)
                 .apply { spec.phone?.let { putExtra(ContactsContract.Intents.Insert.PHONE, it) } }
+            is IntentSpec.Settings -> Intent(settingsAction(spec.page))
+            is IntentSpec.Sms -> {
+                val number = phoneOf(spec.recipient).getOrElse { return ActionResult.Error(it.message.orEmpty()) }
+                Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", number, null)).putExtra("sms_body", spec.text)
+            }
+            is IntentSpec.WhatsApp -> {
+                val number = phoneOf(spec.recipient).getOrElse { return ActionResult.Error(it.message.orEmpty()) }
+                // wa.me exige o número internacional só com dígitos (sem "+").
+                val uri = Uri.parse("https://wa.me/" + number.filter(Char::isDigit)).buildUpon()
+                    .appendQueryParameter("text", spec.text).build()
+                Intent(Intent.ACTION_VIEW, uri).apply { if (isInstalled(service, WHATSAPP)) setPackage(WHATSAPP) }
+            }
+            is IntentSpec.Email -> Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))
+                .putExtra(Intent.EXTRA_EMAIL, arrayOf(spec.to))
+                .putExtra(Intent.EXTRA_SUBJECT, spec.subject)
+                .putExtra(Intent.EXTRA_TEXT, spec.body)
+            is IntentSpec.Event -> {
+                val begin = spec.start.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                Intent(Intent.ACTION_INSERT, CalendarContract.Events.CONTENT_URI)
+                    .putExtra(CalendarContract.Events.TITLE, spec.title)
+                    .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, begin)
+                    .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, begin + EVENT_DEFAULT_MS)
+            }
+            is IntentSpec.Navigate -> if (isInstalled(service, MAPS)) {
+                Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=" + Uri.encode(spec.destination))).setPackage(MAPS)
+            } else {
+                Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + Uri.encode(spec.destination)))
+            }
         }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         return try {
@@ -196,6 +232,39 @@ class ActionExecutor @Inject constructor(
         val first = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY).firstOrNull() ?: return intent
         return Intent(intent).setClassName(first.activityInfo.packageName, first.activityInfo.name)
     }
+
+    /** Número direto ou telefone do contato com esse nome (exige a permissão de Contatos). */
+    private fun phoneOf(target: String): Result<String> {
+        val trimmed = target.trim()
+        if (trimmed.count(Char::isDigit) >= MIN_PHONE_DIGITS) {
+            return Result.success(trimmed.filter { it.isDigit() || it == '+' })
+        }
+        if (!contacts.hasPermission()) {
+            return Result.failure(IllegalStateException("Para usar o nome \"$trimmed\", permita o acesso aos Contatos em Permissões"))
+        }
+        return contacts.phoneFor(trimmed)?.let { Result.success(it) }
+            ?: Result.failure(IllegalStateException("Contato \"$trimmed\" não encontrado"))
+    }
+
+    /** Painéis (Wi-Fi, internet, volume) mostram o botão de ligar/desligar sem sair do app atual. */
+    private fun settingsAction(page: SettingsPage): String = when (page) {
+        SettingsPage.Wifi -> Settings.Panel.ACTION_WIFI
+        SettingsPage.Internet -> Settings.Panel.ACTION_INTERNET_CONNECTIVITY
+        SettingsPage.Sound -> Settings.Panel.ACTION_VOLUME
+        SettingsPage.Bluetooth -> Settings.ACTION_BLUETOOTH_SETTINGS
+        SettingsPage.Display -> Settings.ACTION_DISPLAY_SETTINGS
+        SettingsPage.Battery -> Intent.ACTION_POWER_USAGE_SUMMARY
+        SettingsPage.Location -> Settings.ACTION_LOCATION_SOURCE_SETTINGS
+        SettingsPage.Apps -> Settings.ACTION_APPLICATION_SETTINGS
+        SettingsPage.Notifications -> ALL_APPS_NOTIFICATION_SETTINGS
+        SettingsPage.Storage -> Settings.ACTION_INTERNAL_STORAGE_SETTINGS
+        SettingsPage.Airplane -> Settings.ACTION_AIRPLANE_MODE_SETTINGS
+        SettingsPage.DateTime -> Settings.ACTION_DATE_SETTINGS
+        SettingsPage.Language -> Settings.ACTION_LOCALE_SETTINGS
+    }
+
+    private fun isInstalled(service: AccessibilityService, pkg: String): Boolean =
+        service.packageManager.getLaunchIntentForPackage(pkg) != null
 
     private fun navigate(service: AccessibilityService, key: NavKey): ActionResult {
         val action = when (key) {
@@ -268,6 +337,11 @@ class ActionExecutor @Inject constructor(
     private companion object {
         const val TAG = "ActionExecutor"
         const val SYSTEM_RESOLVER_PACKAGE = "android"
+        const val WHATSAPP = "com.whatsapp"
+        const val MAPS = "com.google.android.apps.maps"
+        const val MIN_PHONE_DIGITS = 3
+        const val EVENT_DEFAULT_MS = 60 * 60_000L
+        const val ALL_APPS_NOTIFICATION_SETTINGS = "android.settings.ALL_APPS_NOTIFICATION_SETTINGS"
         const val MAX_ANCESTORS = 6
         const val TAP_MS = 50L
         const val SWIPE_MS = 300L

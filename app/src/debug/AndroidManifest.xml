@@ -9,7 +9,16 @@
             <intent-filter>
                 <action android:name="com.melanta.debug.DUMP" />
                 <action android:name="com.melanta.debug.EXEC" />
+                <action android:name="com.melanta.debug.CONFIRM" />
+                <action android:name="com.melanta.debug.DENY" />
             </intent-filter>
         </receiver>
+        <activity
+            android:name="com.melanta.debug.DebugTaskActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:permission="android.permission.DUMP"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     </application>
 </manifest>

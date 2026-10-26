@@ -19,6 +19,7 @@ data class PermissionSnapshot(
     val postNotifications: Boolean,
     val notificationListener: Boolean,
     val overlay: Boolean,
+    val contacts: Boolean,
     /** Android 13+ bloqueia Acessibilidade e Leitor de notificações em APKs fora da loja. */
     val mayNeedRestrictedSettings: Boolean,
 ) {
@@ -33,6 +34,8 @@ class PermissionChecker @Inject constructor(
         postNotifications = hasPostNotifications(),
         notificationListener = context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context),
         overlay = Settings.canDrawOverlays(context),
+        contacts = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
+            PackageManager.PERMISSION_GRANTED,
         mayNeedRestrictedSettings = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !installedFromStore(),
     )
 
