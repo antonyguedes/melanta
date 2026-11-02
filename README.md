@@ -170,15 +170,8 @@ tools/model-bench/build/install/model-bench/bin/model-bench caminho/do/modelo.li
 > [!NOTE]
 > O roteiro de E2E procura o `adb` em `~/Android/Sdk/platform-tools/`. Ele também altera o aparelho: envia SMS, muda o Wi-Fi, apaga os contatos `Jose` e `Maria` e redefine a permissão de notificações do YouTube. Use um emulador dedicado.
 
-## 🎨 Identidade visual
-
-<p>
-  <img src="https://img.shields.io/badge/Ameixa-%234A2E4B-4A2E4B?style=flat-square" alt="Ameixa #4A2E4B">
-  <img src="https://img.shields.io/badge/Ameixa%20profundo-%232E1430-2E1430?style=flat-square" alt="Ameixa profundo #2E1430">
-  <img src="https://img.shields.io/badge/Preto%20t%C3%A1tico-%231A1A1D-1A1A1D?style=flat-square" alt="Preto tático #1A1A1D">
-  <img src="https://img.shields.io/badge/Lil%C3%A1s-%23D9B8DA-D9B8DA?style=flat-square" alt="Lilás #D9B8DA">
-</p>
-
 ## 📄 Licença
 
-Distribuído sob a [licença MIT](LICENSE). © 2026 Antony Guedes.
+O código é distribuído sob a [licença MIT](LICENSE). © 2026 Antony Guedes.
+
+A imagem do banner mostra Melantha, personagem de *Arknights*, e não faz parte dessa licença. Os direitos da personagem pertencem aos seus detentores.
