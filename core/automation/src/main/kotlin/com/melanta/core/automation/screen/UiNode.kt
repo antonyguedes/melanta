@@ -31,6 +31,7 @@ interface UiNode {
     val isEnabled: Boolean
     val isFocused: Boolean
     val isScrollable: Boolean
+    val isPassword: Boolean get() = false
     val childCount: Int
 
     fun child(index: Int): UiNode?

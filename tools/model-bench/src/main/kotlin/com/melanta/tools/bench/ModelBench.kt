@@ -12,17 +12,23 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.ResponseFormat
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ThinkingConfig
+import com.melanta.core.ai.cloud.CloudEndpoint
+import com.melanta.core.ai.cloud.CloudGenerator
+import com.melanta.core.ai.engine.GenParams
 import com.melanta.core.ai.eval.EvalScenarios
 import com.melanta.core.ai.prompt.AgentPrompt
 import com.melanta.core.ai.prompt.ChatTemplates
 import com.melanta.core.ai.prompt.ChatMessage
 import com.melanta.core.ai.prompt.LlmPrompt
+import com.melanta.core.ai.prompt.PromptBudget
 import com.melanta.core.ai.prompt.PromptBuilder
 import com.melanta.core.ai.prompt.PromptInput
 import com.melanta.core.ai.tool.ParseContext
 import com.melanta.core.ai.tool.ParseResult
 import com.melanta.core.ai.tool.ToolCallParser
 import com.melanta.core.ai.tool.ToolCallSchema
+import com.melanta.core.ai.tool.untilFirstJsonObject
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -38,6 +44,13 @@ fun main(args: Array<String>) {
     // para avaliar outros decisores (ex.: o classificador Laya) fora da JVM.
     args.indexOf("--export-scenarios").takeIf { it >= 0 }?.let { index ->
         exportScenarios(File(args[index + 1]))
+        return
+    }
+    // --cloud <baseUrl> --cloud-model <modelo>: mesmos cenários contra um provedor. A chave vem de
+    // MELANTA_CLOUD_KEY, nunca de um argumento, que ficaria no histórico do shell.
+    args.indexOf("--cloud").takeIf { it >= 0 }?.let { index ->
+        val cloudModel = args[args.indexOf("--cloud-model") + 1]
+        runCloudBench(args[index + 1], cloudModel, "--free" !in args, args.indexOf("--json").takeIf { it >= 0 }?.let { File(args[it + 1]) })
         return
     }
     val model = File(args.firstOrNull() ?: error("uso: <modelo.litertlm> [--free] [--threads N] [--template chatml-parts|arquivo.jinja] [--render]"))
@@ -172,4 +185,69 @@ private fun exportScenarios(out: File) {
     }
     out.writeText(JsonArray(scenarios).toString())
     println("${scenarios.size} cenários exportados para $out")
+}
+
+/** Roda os cenários pelo mesmo cliente do app: JSON válido, acerto de ação, tempo até o primeiro texto e tempo total. */
+private fun runCloudBench(baseUrl: String, model: String, constrained: Boolean, jsonOut: File?) = runBlocking {
+    val generator = CloudGenerator({ CloudEndpoint(baseUrl, model, System.getenv("MELANTA_CLOUD_KEY")) })
+    val builder = PromptBuilder()
+    val parser = ToolCallParser()
+    val results = mutableListOf<JsonObject>()
+    val ttft = mutableListOf<Long>()
+    val totals = mutableListOf<Long>()
+    var correct = 0
+    var holdoutCorrect = 0
+    var valid = 0
+    var firstTry = 0
+    println("nuvem: $baseUrl · modelo: $model · JSON restrito: $constrained")
+    for (scenario in EvalScenarios.all) {
+        val built = builder.build(PromptInput(scenario.task, scenario.history, scenario.screenContext(), now = EvalScenarios.NOW), PromptBudget.Cloud)
+        val params = GenParams(
+            maxOutputTokens = PromptBudget.Cloud.outputTokens,
+            responseSchema = if (constrained) ToolCallSchema.build(built.targets) else null,
+        )
+        var prompt: LlmPrompt = built.prompt
+        var result: ParseResult? = null
+        var attempts = 0
+        var raw = ""
+        var firstChunk: Long? = null
+        val elapsed = measureTimeMillis {
+            while (attempts < 3) {
+                attempts++
+                val start = System.nanoTime()
+                val text = StringBuilder()
+                generator.generate(prompt, params).untilFirstJsonObject().collect {
+                    if (firstChunk == null) firstChunk = (System.nanoTime() - start) / 1_000_000
+                    text.append(it)
+                }
+                raw = text.toString()
+                val parsed = parser.parse(raw, ParseContext(built.visibleIds, built.targets))
+                result = parsed
+                if (parsed is ParseResult.Success) break
+                prompt = builder.correction(prompt, raw, (parsed as ParseResult.Failure).detail)
+            }
+        }
+        val call = (result as? ParseResult.Success)?.call
+        val ok = call != null && scenario.judge(call)
+        if (call != null) valid++
+        if (call != null && attempts == 1) firstTry++
+        if (ok) correct++
+        if (ok && scenario.holdout) holdoutCorrect++
+        firstChunk?.let(ttft::add)
+        totals += elapsed
+        results += buildJsonObject {
+            put("name", scenario.name)
+            put("holdout", scenario.holdout)
+            put("tool", call?.name)
+            put("args", call?.args ?: JsonObject(emptyMap()))
+            put("correct", ok)
+            put("millis", elapsed)
+        }
+        val got = call?.let { "${it.name} ${it.args}" } ?: "inválido: ${raw.take(80).replace('\n', ' ')}"
+        println("${if (ok) "✓" else "✗"} ${if (scenario.holdout) "[controle] " else ""}${scenario.name.padEnd(22)} ${elapsed.toString().padStart(6)} ms · $attempts tent. · $got")
+    }
+    jsonOut?.writeText(JsonArray(results).toString())
+    val n = EvalScenarios.all.size
+    val holdouts = EvalScenarios.all.count { it.holdout }
+    println("RESUMO $model (nuvem): corretos $correct/$n · controle $holdoutCorrect/$holdouts · válidos $valid/$n · 1ª tentativa $firstTry/$n · 1º texto ${ttft.average().toLong()} ms · total ${totals.average().toLong()} ms")
 }

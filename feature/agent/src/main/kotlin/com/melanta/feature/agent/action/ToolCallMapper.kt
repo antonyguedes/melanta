@@ -75,7 +75,7 @@ class ToolCallMapper internal constructor(private val now: () -> LocalDateTime) 
             "settings" -> parseSettings(value)?.let(IntentSpec::Settings)
                 ?: return MapResult.Failure("settings value must be one of: ${SETTINGS_NAMES.joinToString("|")}.")
             "sms", "whatsapp" -> {
-                val (recipient, text) = parts(value, 2).takeIf { it[0].isNotBlank() && it[1].isNotBlank() }
+                val (recipient, text) = parts(messageValue(value), 2).takeIf { it[0].isNotBlank() && it[1].isNotBlank() }
                     ?: return MapResult.Failure("$kind value must be \"contact or phone | text\".")
                 if (kind == "sms") IntentSpec.Sms(recipient, text) else IntentSpec.WhatsApp(recipient, text)
             }
@@ -116,6 +116,12 @@ class ToolCallMapper internal constructor(private val now: () -> LocalDateTime) 
             SETTINGS_SYNONYMS.entries.firstOrNull { (_, names) -> v in names }?.let { return it.key }
             return SETTINGS_SYNONYMS.entries.firstOrNull { (_, names) -> names.any { name -> name in v } }?.key
         }
+
+        /** Modelos também escrevem como link: "11999998888?text=oi", "11999998888?oi". Com "|", vale o "|". */
+        private fun messageValue(value: String): String =
+            if ('|' in value) value else value.replace(MESSAGE_AS_LINK, "$1|$2")
+
+        private val MESSAGE_AS_LINK = Regex("""^([+\d\s().-]+)\?(?:(?:text|body|message)=)?(.+)$""", RegexOption.IGNORE_CASE)
 
         /** "a | b | c" em exatamente [n] partes; a última recebe o resto (o texto pode conter "|"). */
         private fun parts(value: String, n: Int): List<String> {

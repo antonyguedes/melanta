@@ -1,5 +1,12 @@
 package com.melanta.feature.agent.loop
 
+import com.melanta.core.ai.cloud.CloudException
+import com.melanta.core.ai.cloud.CloudPreflight
+import com.melanta.core.ai.cloud.CloudUnavailableException
+import com.melanta.core.ai.cloud.InferenceMode
+import com.melanta.core.ai.cloud.InferenceSettings
+import com.melanta.core.ai.cloud.NetworkStatus
+import com.melanta.core.ai.cloud.withCloudRetry
 import com.melanta.core.ai.engine.InsufficientMemoryException
 import com.melanta.core.ai.engine.ModelManager
 import com.melanta.core.ai.engine.ToolCallGenerator
@@ -76,8 +83,13 @@ class DefaultScreenPerception @Inject constructor(
 class DefaultActionReasoner @Inject constructor(
     private val generator: ToolCallGenerator,
     private val modelManager: ModelManager,
+    private val settings: InferenceSettings,
+    private val network: NetworkStatus,
 ) : ActionReasoner {
-    override suspend fun decide(input: PromptInput): ToolCallGenerator.Outcome = try {
+    override suspend fun decide(input: PromptInput): ToolCallGenerator.Outcome =
+        if (settings.current().mode == InferenceMode.Cloud) decideInCloud(input) else decideLocally(input)
+
+    private suspend fun decideLocally(input: PromptInput): ToolCallGenerator.Outcome = try {
         generator.decide(input, constrained = true)
     } catch (e: CancellationException) {
         throw e
@@ -86,6 +98,20 @@ class DefaultActionReasoner @Inject constructor(
         if (!modelManager.fallbackToCpu()) throw e
         generator.decide(input, constrained = true)
     }
+
+    private suspend fun decideInCloud(input: PromptInput): ToolCallGenerator.Outcome = try {
+        // Sem rede, as esperas do retry só atrasariam o fallback.
+        if (!network.isOnline() && canFallBack()) throw CloudUnavailableException("Sem conexão com a internet.")
+        withCloudRetry { generator.decide(input, constrained = true) }
+    } catch (e: CloudUnavailableException) {
+        if (!canFallBack()) throw AgentSetupException(e.message.orEmpty(), e)
+        modelManager.loadPreferred()
+        generator.decide(input, constrained = true, forceLocal = true)
+    } catch (e: CloudException) {
+        throw AgentSetupException(e.message.orEmpty(), e)
+    }
+
+    private suspend fun canFallBack() = settings.current().localFallback && modelManager.preferredModel() != null
 }
 
 class DefaultActionActuator @Inject constructor(
@@ -109,17 +135,37 @@ class DefaultActionActuator @Inject constructor(
 
 class DefaultModelPreparer @Inject constructor(
     private val modelManager: ModelManager,
+    private val settings: InferenceSettings,
+    private val preflight: CloudPreflight,
 ) : ModelPreparer {
     override suspend fun prepare() {
-        val model = modelManager.preferredModel()
-            ?: throw AgentSetupException("Nenhum modelo instalado. Baixe um modelo na tela Modelos.")
-        try {
-            modelManager.ensureLoaded(model)
-        } catch (e: InsufficientMemoryException) {
-            throw AgentSetupException("Memória insuficiente para carregar ${model.displayName}. Feche outros apps e tente de novo.", e)
-        } catch (e: Exception) {
-            throw AgentSetupException("Não foi possível carregar ${model.displayName}: ${e.message}", e)
+        val current = settings.current()
+        if (current.mode == InferenceMode.Local) {
+            modelManager.loadPreferred()
+            return
         }
+        try {
+            preflight.check()
+        } catch (e: CloudUnavailableException) {
+            if (!current.localFallback || modelManager.preferredModel() == null) throw AgentSetupException(e.message.orEmpty(), e)
+            modelManager.loadPreferred()
+        } catch (e: CloudException) {
+            throw AgentSetupException(e.message.orEmpty(), e)
+        }
+    }
+}
+
+private suspend fun ModelManager.loadPreferred() {
+    val model = preferredModel()
+        ?: throw AgentSetupException("Nenhum modelo instalado. Baixe um modelo na tela Modelos.")
+    try {
+        ensureLoaded(model)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: InsufficientMemoryException) {
+        throw AgentSetupException("Memória insuficiente para carregar ${model.displayName}. Feche outros apps e tente de novo.", e)
+    } catch (e: Exception) {
+        throw AgentSetupException("Não foi possível carregar ${model.displayName}: ${e.message}", e)
     }
 }
 

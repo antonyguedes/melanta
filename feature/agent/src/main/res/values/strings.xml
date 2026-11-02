@@ -26,6 +26,7 @@
     <string name="agent_models">Modelos</string>
     <string name="agent_permissions">Permissões</string>
     <string name="agent_tools">Ferramentas</string>
+    <string name="agent_engine">Motor de IA</string>
     <string name="agent_playground">Playground do modelo</string>
     <string name="agent_automation">Automação (debug)</string>
     <string name="agent_hero_idle">O que eu faço por você?</string>
@@ -36,6 +37,9 @@
     <string name="agent_hero_failed">Não deu certo</string>
     <string name="agent_hero_cancelled">Parado</string>
     <string name="agent_model_none">Nenhum modelo instalado</string>
+    <string name="agent_model_cloud">Nuvem · %1$s</string>
+    <string name="agent_model_cloud_setup">Nuvem · falta configurar</string>
+    <string name="agent_setup_cloud">O modo Nuvem está ligado, mas falta a chave de API ou a autorização de envio.</string>
     <string name="agent_model_ready">%1$s · pronto (%2$s)</string>
     <string name="agent_model_loading">%1$s · carregando</string>
     <string name="agent_model_error">%1$s · erro ao carregar</string>
@@ -61,6 +65,9 @@
     <string name="agent_progress_acting">Executando…</string>
     <string name="agent_progress_confirm">Aguardando sua confirmação: %1$s</string>
     <string name="agent_chip_step">Passo %1$d</string>
+    <string name="agent_cloud_subtext">☁ Nuvem · %1$s</string>
+    <string name="overlay_cloud_step">☁ Passo %1$d</string>
+    <string name="overlay_cloud">☁ Nuvem</string>
     <string name="agent_chip_loading">Carregando</string>
     <string name="agent_chip_confirm">Confirmar?</string>
     <string name="agent_result_channel">Resultado das tarefas</string>

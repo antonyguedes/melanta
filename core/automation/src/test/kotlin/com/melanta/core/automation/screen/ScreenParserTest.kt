@@ -66,6 +66,17 @@ class ScreenParserTest {
     }
 
     @Test
+    fun `conteudo de campo de senha nunca entra na lista`() {
+        val root = FakeNode(
+            bounds = screen,
+            children = listOf(
+                FakeNode(className = "android.widget.EditText", text = "hunter2", hintText = "Entrar", isEditable = true, isClickable = true, isPassword = true, bounds = Bounds(0, 0, 500, 100)),
+            ),
+        )
+        assertEquals(listOf("""[1] edit "Entrar" click password"""), lines(app(root)))
+    }
+
+    @Test
     fun `janela protegida no topo vira protectedWindow`() {
         val dialog = UiWindow(WindowKind.Application, 2, null, "Allow YouTube to send you notifications?", Bounds(28, 789, 1052, 1610), null)
         val snapshot = parser.parse(listOf(dialog), "com.melanta", screen)

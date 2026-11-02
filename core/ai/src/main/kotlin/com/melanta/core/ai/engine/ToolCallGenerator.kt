@@ -20,7 +20,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * for inválida, repete com re-prompt corretivo (no máximo [MAX_CORRECTIONS] vezes).
  */
 class ToolCallGenerator @Inject constructor(
-    private val modelManager: ModelManager,
+    private val router: InferenceRouter,
     private val promptBuilder: PromptBuilder,
     private val parser: ToolCallParser,
 ) {
@@ -38,21 +38,28 @@ class ToolCallGenerator @Inject constructor(
 
     /**
      * @param constrained usa o JSON Schema de [ToolCallSchema] no motor (constrained decoding).
+     * @param forceLocal usa o modelo local mesmo no modo Nuvem (Playground e fallback sem rede).
      * @param onChunk recebe o texto parcial de cada tentativa, para UI ao vivo.
      */
     suspend fun decide(
         input: PromptInput,
         constrained: Boolean,
+        forceLocal: Boolean = false,
         onChunk: (attempt: Int, textSoFar: String) -> Unit = { _, _ -> },
     ): Outcome {
-        val built = promptBuilder.build(input)
+        // Lido uma vez por passo: as correções abaixo ficam no mesmo motor e com o mesmo conteúdo já redigido.
+        val profile = if (forceLocal) router.localProfile() else router.profile()
+        val built = promptBuilder.build(profile.prepare(input), profile.budget)
         val context = ParseContext(built.visibleIds, built.targets)
-        val params = GenParams(responseSchema = if (constrained) ToolCallSchema.build(built.targets) else null)
+        val params = GenParams(
+            maxOutputTokens = profile.budget.outputTokens,
+            responseSchema = if (constrained) ToolCallSchema.build(built.targets) else null,
+        )
 
         val attempts = mutableListOf<Attempt>()
         var prompt: LlmPrompt = built.prompt
         repeat(1 + MAX_CORRECTIONS) { index ->
-            val attempt = generateOnce(prompt, params, context) { onChunk(index, it) }
+            val attempt = generateOnce(profile.generator, prompt, params, context) { onChunk(index, it) }
             attempts += attempt
             val result = attempt.result
             if (result !is ParseResult.Failure) return Outcome(built, attempts)
@@ -62,16 +69,17 @@ class ToolCallGenerator @Inject constructor(
     }
 
     private suspend fun generateOnce(
+        generator: TextGenerator,
         prompt: LlmPrompt,
         params: GenParams,
         context: ParseContext,
         onChunk: (String) -> Unit,
     ): Attempt {
-        val previousStats = modelManager.lastStats.value
+        val previousStats = generator.lastStats.value
         val raw = StringBuilder()
         val start = SystemClock.elapsedRealtime()
         var firstChunk: Long? = null
-        modelManager.generate(prompt, params).untilFirstJsonObject().collect { chunk ->
+        generator.generate(prompt, params).untilFirstJsonObject().collect { chunk ->
             if (firstChunk == null) firstChunk = SystemClock.elapsedRealtime() - start
             raw.append(chunk)
             onChunk(raw.toString())
@@ -79,7 +87,7 @@ class ToolCallGenerator @Inject constructor(
         val total = SystemClock.elapsedRealtime() - start
         // Num corte de stream o motor publica as métricas de forma assíncrona, logo após cancelar.
         val stats = withTimeoutOrNull(STATS_WAIT_MILLIS) {
-            modelManager.lastStats.first { it != null && it !== previousStats }
+            generator.lastStats.first { it != null && it !== previousStats }
         }
         return Attempt(raw.toString(), parser.parse(raw.toString(), context), firstChunk, total, stats)
     }

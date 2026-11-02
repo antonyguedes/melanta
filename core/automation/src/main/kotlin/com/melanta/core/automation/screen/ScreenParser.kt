@@ -148,7 +148,10 @@ class ScreenParser @Inject constructor() {
     }
 
     private fun labelOf(node: UiNode): String? {
-        val raw = if (node.isEditable) {
+        val raw = if (node.isPassword) {
+            // O conteúdo de um campo de senha nunca entra no prompt, em nenhum modo.
+            node.hintText ?: node.contentDescription
+        } else if (node.isEditable) {
             node.text?.takeIf { it.isNotBlank() } ?: node.hintText ?: node.contentDescription
         } else {
             node.text?.takeIf { it.isNotBlank() } ?: node.contentDescription ?: node.hintText
@@ -174,6 +177,7 @@ class ScreenParser @Inject constructor() {
     private fun flagsOf(node: UiNode, role: String): List<String> = buildList {
         if (node.isClickable || node.isLongClickable) add("click")
         if (node.isFocused) add("focused")
+        if (node.isPassword) add("password")
         if (node.isCheckable && node.isChecked) add("checked")
         // Em abas, a ausência de "checked" basta; em interruptores o estado desligado precisa ser explícito.
         else if (role in TOGGLE_ROLES) add("unchecked")

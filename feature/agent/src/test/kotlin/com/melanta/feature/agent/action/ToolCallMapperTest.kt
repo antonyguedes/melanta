@@ -124,6 +124,14 @@ class ToolCallMapperTest {
             AgentAction.LaunchIntent(IntentSpec.WhatsApp("Ana", "oi")),
             action("""{"tool":"send_whatsapp","args":{"to":"Ana","message":"oi"}}"""),
         )
+        listOf("11999998888?text=oi", "11999998888?oi", "11999998888 | oi").forEach { value ->
+            assertEquals(value, AgentAction.LaunchIntent(IntentSpec.Sms("11999998888", "oi")), action("""{"tool":"intent","args":{"kind":"sms","value":"$value"}}"""))
+        }
+        assertEquals(
+            "a interrogação de uma frase não é separador",
+            true,
+            map("""{"tool":"intent","args":{"kind":"sms","value":"Ana, tudo bem?"}}""") is MapResult.Failure,
+        )
         assertTrue(map("""{"tool":"intent","args":{"kind":"sms","value":"Ana"}}""") is MapResult.Failure)
         assertEquals(
             AgentAction.LaunchIntent(IntentSpec.Email("ana@ex.com", "Reunião", "Confirmado")),

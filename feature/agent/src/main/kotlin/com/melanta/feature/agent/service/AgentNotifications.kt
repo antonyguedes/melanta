@@ -17,6 +17,8 @@ import com.melanta.feature.agent.state.AgentState
 import com.melanta.feature.agent.state.AgentStep
 import com.melanta.feature.agent.state.task
 import dagger.hilt.android.qualifiers.ApplicationContext
+import com.melanta.core.ai.cloud.InferenceMode
+import com.melanta.core.ai.cloud.InferenceSettings
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,6 +32,7 @@ import javax.inject.Singleton
 @Singleton
 class AgentNotifications @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val inference: InferenceSettings,
 ) {
     private val manager = NotificationManagerCompat.from(context)
 
@@ -119,7 +122,8 @@ class AgentNotifications @Inject constructor(
             .setColor(PLUM)
             .setContentTitle(state.task?.take(MAX_TITLE) ?: context.getString(R.string.agent_notification_title))
             .setContentText(text)
-            .setSubText(step?.let { context.getString(R.string.agent_chip_step, it + 1) })
+            // Enquanto a tela estiver indo para a nuvem, a notificação deixa isso visível o tempo todo.
+            .setSubText(subText(step))
             // Expandida, mostra os últimos passos. BigText também é um estilo aceito para Live Update.
             .setStyle(NotificationCompat.BigTextStyle().bigText(if (previous.isEmpty()) text else "$text\n\n$previous"))
             // Barra indeterminada: o número de passos não é conhecido de antemão.
@@ -150,6 +154,13 @@ class AgentNotifications @Inject constructor(
             .addAction(0, context.getString(R.string.agent_confirm_allow), AgentNotificationReceiver.approve(context))
             .addAction(0, context.getString(R.string.agent_confirm_deny), AgentNotificationReceiver.deny(context))
             .build()
+
+    private fun subText(step: Int?): String? {
+        val current = step?.let { context.getString(R.string.agent_chip_step, it + 1) }
+        val settings = inference.state.value
+        if (settings.mode != InferenceMode.Cloud) return current
+        return context.getString(R.string.agent_cloud_subtext, current ?: settings.cloud.model)
+    }
 
     private fun statusMark(status: AgentStep.Status): String = when (status) {
         AgentStep.Status.Done -> "✓"

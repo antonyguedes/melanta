@@ -71,6 +71,60 @@ class SafetyPolicyTest {
     }
 
     @Test
+    fun `campo marcado como senha e bloqueado mesmo sem rotulo sensivel`() {
+        val field = UiElement(1, "edit", "Entrar", listOf("click", "password"), Bounds(0, 0, 10, 10), null, 5, null)
+        val snapshot = ScreenSnapshot("com.app", null, listOf(field), Bounds(0, 0, 1080, 2400))
+        assertTrue(policy.evaluate(AgentAction.Type(Target.ById(1), "abc", submit = false), snapshot) is SafetyDecision.Block)
+    }
+
+    @Test
+    fun `destino precisa vir do pedido, da tela ou de uma notificacao`() {
+        val task = "Manda SMS para 11 99999-8888 e copia ana@ex.com"
+        val blank = screen("com.app", "Observação")
+        fun unverified(spec: IntentSpec, snapshot: ScreenSnapshot = blank, notifications: List<String> = emptyList()) =
+            policy.unverifiedContact(AgentAction.LaunchIntent(spec), task, snapshot, notifications)
+
+        // O dígito a mais do teste de ponta a ponta.
+        assertEquals("119999988888", unverified(IntentSpec.Sms("119999988888", "oi")))
+        assertEquals(null, unverified(IntentSpec.Sms("11999998888", "oi")))
+        assertEquals("um dígito a menos também é outra pessoa", "1199999888", unverified(IntentSpec.Sms("1199999888", "oi")))
+        assertEquals("formatação e DDI não mudam o número", null, unverified(IntentSpec.Sms("+55 (11) 99999-8888", "oi")))
+        assertEquals("11888887777", unverified(IntentSpec.WhatsApp("11888887777", "oi")))
+        assertEquals(null, unverified(IntentSpec.WhatsApp("11888887777", "oi"), screen("com.app", "Bia 11 88888-7777")))
+        assertEquals(null, unverified(IntentSpec.Sms("11888887777", "oi"), notifications = listOf("""Bia: "me liga no 11 88888-7777"""")))
+        assertEquals("nome vem da agenda", null, unverified(IntentSpec.Sms("Ana", "oi")))
+        assertEquals("21977776666", unverified(IntentSpec.AddContact("Jose", "21977776666")))
+        assertEquals(null, unverified(IntentSpec.AddContact("Jose", null)))
+        assertEquals("21977776666", unverified(IntentSpec.Dial("21977776666")))
+        assertEquals("número curto só abre o discador", null, unverified(IntentSpec.Dial("190")))
+        assertEquals("bia@ex.com", unverified(IntentSpec.Email("bia@ex.com", "a", "b")))
+        assertEquals(null, unverified(IntentSpec.Email("ANA@ex.com", "a", "b")))
+        assertEquals("21977776666", policy.unverifiedContact(AgentAction.Type(Target.ById(1), "21977776666", submit = false), task, blank, emptyList()))
+        assertEquals(null, policy.unverifiedContact(AgentAction.Type(Target.ById(1), "oi, tudo bem?", submit = false), task, blank, emptyList()))
+        listOf("2026-11-02 15:00", "2026-11-02", "pedido 12345678 entregue").forEach {
+            assertEquals(it, null, policy.unverifiedContact(AgentAction.Type(Target.ById(1), it, submit = false), task, blank, emptyList()))
+        }
+    }
+
+    @Test
+    fun `enviar por uma conversa que nao e a pedida e recusado`() {
+        val task = "Manda SMS para 11 99999-8888 dizendo oi"
+        val send = AgentAction.Type(Target.ById(1), "oi", submit = true)
+        val wrong = screen("com.google.android.apps.messaging", "Mensagem", "119999988888")
+        val right = screen("com.google.android.apps.messaging", "Mensagem", "11 99999-8888")
+
+        assertEquals("11 99999-8888", policy.wrongConversation(send, task, wrong))
+        assertEquals(null, policy.wrongConversation(send, task, right))
+        assertEquals("só digitar não envia", null, policy.wrongConversation(AgentAction.Type(Target.ById(1), "oi", submit = false), task, wrong))
+        assertEquals("sem número no pedido, não há o que conferir", null, policy.wrongConversation(send, "Manda oi para a Ana", wrong))
+        assertEquals("11 99999-8888", policy.wrongConversation(AgentAction.Click(Target.ById(1)), task, screen("com.app", "Send SMS", "119999988888")))
+        assertEquals(null, policy.wrongConversation(AgentAction.Click(Target.ById(1)), task, screen("com.app", "Voltar", "119999988888")))
+
+        val decision = policy.evaluate(send, wrong) as SafetyDecision.RequireConfirmation
+        assertTrue(decision.reason, "119999988888" in decision.reason)
+    }
+
+    @Test
     fun `telefone com DDI ou numero que nao passa no Luhn nao e cartao`() {
         assertTrue(SafetyPolicy.looksLikeCardNumber("5500-0000-0000-0004"))
         assertTrue(SafetyPolicy.looksLikeCardNumber("cartão 378282246310005"))

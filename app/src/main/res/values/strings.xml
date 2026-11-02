@@ -2,9 +2,36 @@
 <resources>
     <string name="app_name">Melanta</string>
 
+    <!-- Motor de IA -->
+    <string name="engine_title">Motor de IA</string>
+    <string name="engine_mode_title">Onde a IA roda</string>
+    <string name="engine_mode_local">Local</string>
+    <string name="engine_mode_local_detail">No aparelho. Nada da sua tela sai do celular.</string>
+    <string name="engine_mode_cloud">Nuvem</string>
+    <string name="engine_mode_cloud_detail">No provedor que você escolher, com a sua chave de API. Pode gerar custos na sua conta.</string>
+    <string name="engine_provider_title">Provedor</string>
+    <string name="engine_base_url">Endereço (https://…)</string>
+    <string name="engine_model">Modelo</string>
+    <string name="engine_api_key">Chave de API</string>
+    <string name="engine_api_key_saved">Chave salva, cifrada no aparelho. Digite outra para trocar.</string>
+    <string name="engine_save_key">Salvar chave</string>
+    <string name="engine_remove_key">Remover chave</string>
+    <string name="engine_test">Testar conexão</string>
+    <string name="engine_testing">Testando…</string>
+    <string name="engine_test_ok">Conectado em %1$d ms.</string>
+    <string name="engine_privacy_title">Privacidade</string>
+    <string name="engine_send_notifications">Enviar o texto das notificações</string>
+    <string name="engine_send_notifications_detail">Desligado, o provedor recebe só o nome do app que notificou.</string>
+    <string name="engine_fallback">Usar o modelo local se a nuvem falhar</string>
+    <string name="engine_fallback_detail">Sem internet ou com o provedor fora do ar, a tarefa continua no aparelho, se houver um modelo instalado.</string>
+    <string name="engine_consent_title">Enviar sua tela para %1$s?</string>
+    <string name="engine_consent_body">Enquanto o modo Nuvem estiver ligado, cada passo de uma tarefa envia para %1$s (%2$s):\n\n• o seu pedido, como você escreveu;\n• os textos e botões da tela, inclusive nomes e mensagens visíveis;\n• as ações feitas até ali.\n\nO Melanta esconde campos de senha e mascara números longos, e-mails e códigos, mas essa detecção é automática e pode deixar passar algo. Telas de bancos e de gerenciadores de senha não são enviadas.\n\nO que acontece com os dados depois disso depende da política do provedor.</string>
+    <string name="engine_consent_accept">Autorizar e ligar</string>
+    <string name="engine_consent_decline">Agora não</string>
+
     <!-- Onboarding de permissões -->
     <string name="onboarding_title">Permissões</string>
-    <string name="onboarding_intro">O Melanta roda um modelo de IA no próprio aparelho e opera outros apps por você. Para isso, ele precisa das permissões abaixo. Nada da sua tela sai do celular.</string>
+    <string name="onboarding_intro">O Melanta roda um modelo de IA no próprio aparelho e opera outros apps por você. Para isso, ele precisa das permissões abaixo. No modo Local, que é o padrão, nada da sua tela sai do celular.</string>
     <string name="onboarding_continue">Continuar</string>
     <string name="permission_required">Obrigatória</string>
     <string name="permission_recommended">Recomendada</string>

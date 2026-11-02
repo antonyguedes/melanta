@@ -54,6 +54,8 @@ class AgentOrchestrator @Inject constructor(
     private val safety: SafetyPolicy,
     private val logger: AgentRunLogger,
 ) {
+    private class Rejection(val reason: String, val forModel: String)
+
     private sealed interface End {
         data class Finished(val message: String) : End
         data class Failed(val reason: String) : End
@@ -173,7 +175,25 @@ class AgentOrchestrator @Inject constructor(
                 }
             }
 
+            // Destino inventado ou conversa errada voltam como erro, antes de abrir ou enviar qualquer coisa.
+            val rejection = safety.unverifiedContact(action, task, snapshot, perception.recentNotifications())?.let {
+                Rejection("“$it” não está no pedido nem na tela", "\"$it\" is not in TASK or SCREEN. Copy it exactly from TASK")
+            } ?: safety.wrongConversation(action, task, snapshot)?.takeIf { awaitingTap == null }?.let {
+                Rejection("esta tela não é a conversa com $it", "this SCREEN is not the conversation with $it. Use intent with exactly that number")
+            }
+            if (rejection != null) {
+                controller.addStep(AgentStep(step, call.thought, describe(action, snapshot), AgentStep.Status.Failed(rejection.reason)))
+                controller.moveTo(AgentState.Running(task, step, Phase.Acting, call.thought))
+                logger.event("wrong_recipient", "step" to step, "reason" to rejection.reason)
+                if (++consecutiveErrors >= Limits.MAX_CONSECUTIVE_ERRORS) {
+                    return End.Failed("O agente errou o destino: ${rejection.reason}. Nada foi enviado.")
+                }
+                history += "${call.name} ${call.args} -> rejected: ${rejection.forModel}"
+                continue
+            }
+
             // 3. validar
+            val target = ((action as? AgentAction.Click)?.target as? Target.ById)?.let { snapshot.byId(it.index) }
             controller.addStep(AgentStep(step, call.thought, describe(action, snapshot), AgentStep.Status.Running))
             when (val decision = safety.evaluate(action, snapshot)) {
                 is SafetyDecision.Block -> {
@@ -183,8 +203,12 @@ class AgentOrchestrator @Inject constructor(
                 }
                 is SafetyDecision.RequireConfirmation -> {
                     controller.updateStep(step) { it.copy(status = AgentStep.Status.AwaitingConfirmation) }
-                    val approved = controller.requestConfirmation(task, step, decision.reason, Limits.CONFIRMATION_TIMEOUT_MS)
-                    logger.event("confirmation", "step" to step, "approved" to approved)
+                    // "Tocar em Send SMS" não diz o que o usuário está aprovando.
+                    val description = awaitingTap
+                        ?.takeIf { target != null && it.finalButtonPattern().containsMatchIn(target.label) }
+                        ?.let(::sendDescription) ?: decision.reason
+                    val approved = controller.requestConfirmation(task, step, description, Limits.CONFIRMATION_TIMEOUT_MS)
+                    logger.event("confirmation", "step" to step, "description" to description, "approved" to approved)
                     if (!approved) {
                         controller.updateStep(step) { it.copy(status = AgentStep.Status.Denied) }
                         return End.Denied
@@ -220,7 +244,6 @@ class AgentOrchestrator @Inject constructor(
                     End.Failed(action.message.ifBlank { "Não foi possível concluir a tarefa." })
                 }
             }
-            val target = ((action as? AgentAction.Click)?.target as? Target.ById)?.let { snapshot.byId(it.index) }
             if (target != null && toggleGoal != null && toggleGoal.matches(target, task) && toggleGoal.reachedBy(target)) {
                 // Tocar agora inverteria o que o usuário pediu.
                 controller.updateStep(step) { it.copy(status = AgentStep.Status.Done) }
@@ -338,6 +361,13 @@ class AgentOrchestrator @Inject constructor(
         is IntentSpec.Navigate -> "Abri a rota até ${spec.destination}."
         is IntentSpec.Dial -> "Abri o discador com ${spec.target}; toque em ligar para completar."
         else -> "Pronto."
+    }
+
+    private fun sendDescription(spec: IntentSpec): String? = when (spec) {
+        is IntentSpec.Sms -> "Enviar SMS para ${spec.recipient}: “${spec.text}”"
+        is IntentSpec.WhatsApp -> "Enviar no WhatsApp para ${spec.recipient}: “${spec.text}”"
+        is IntentSpec.Email -> "Enviar e-mail para ${spec.to}: “${spec.subject}”"
+        else -> null
     }
 
     private fun formDoneMessage(spec: IntentSpec): String = when (spec) {

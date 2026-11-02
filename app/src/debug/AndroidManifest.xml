@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Só no build de debug. DUMP é uma permissão do shell (adb): nenhum app comum consegue enviar. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application>
+    <!-- Só no debug: HTTP para um servidor de teste no próprio aparelho ou no host do emulador. -->
+    <application android:networkSecurityConfig="@xml/debug_network_security">
         <receiver
             android:name="com.melanta.debug.AutomationDebugReceiver"
             android:exported="true"
@@ -11,6 +12,7 @@
                 <action android:name="com.melanta.debug.EXEC" />
                 <action android:name="com.melanta.debug.CONFIRM" />
                 <action android:name="com.melanta.debug.DENY" />
+                <action android:name="com.melanta.debug.INFERENCE" />
             </intent-filter>
         </receiver>
         <activity

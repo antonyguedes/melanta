@@ -74,7 +74,12 @@ data class PromptBudget(
     val maxHistory: Int = 4,
     /** Folga para os tokens do template de chat e erro de estimativa. */
     val safetyMargin: Int = 96,
-)
+) {
+    companion object {
+        /** Modo Nuvem: cabe a tela quase inteira e mais histórico, e sobra espaço para um `thought` útil. */
+        val Cloud = PromptBudget(contextTokens = 16_000, outputTokens = 256, maxScreenTokens = 8_000, maxHistory = 12)
+    }
+}
 
 /** Estimativa conservadora: ~3 caracteres por token cobre inglês, português e o formato de tela. */
 object TokenEstimator {

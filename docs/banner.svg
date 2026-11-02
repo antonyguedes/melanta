@@ -20,5 +20,5 @@
 
   <text x="72" y="170" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="96" font-weight="700" letter-spacing="-2" fill="#FFFFFF">Melanta</text>
   <text x="76" y="222" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="30" fill="#D9B8DA">O agente de IA que roda no seu Android.</text>
-  <text x="76" y="264" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="22" fill="#D9B8DA" fill-opacity="0.75">Enxerga a tela, age nos apps e nada sai do aparelho.</text>
+  <text x="76" y="264" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="22" fill="#D9B8DA" fill-opacity="0.75">Enxerga a tela e age nos apps. Local por padrão, nuvem se você quiser.</text>
 </svg>

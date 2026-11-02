@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Nada sai do aparelho: modelos têm GBs e o histórico do agente é dado sensível. -->
+<!-- Sem backup: modelos têm GBs, o histórico do agente é dado sensível e as chaves de API ficam aqui, cifradas. -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="root" path="." />

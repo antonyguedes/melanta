@@ -15,5 +15,6 @@ dependencies {
     api(libs.kotlinx.serialization.json)
     api(libs.androidx.work.runtime)
     implementation(libs.androidx.hilt.work)
+    implementation(libs.androidx.datastore.preferences)
     ksp(libs.androidx.hilt.compiler)
 }

@@ -106,7 +106,7 @@ class PlaygroundViewModel @Inject constructor(
             now = EvalScenarios.NOW,
         )
         run.update { it.copy(outcome = null, liveOutput = "", liveAttempt = 0) }
-        val outcome = generator.decide(input, current.constrained) { attempt, text ->
+        val outcome = generator.decide(input, current.constrained, forceLocal = true) { attempt, text ->
             run.update { it.copy(liveAttempt = attempt, liveOutput = text) }
         }
         run.update { it.copy(outcome = outcome) }
@@ -125,7 +125,7 @@ class PlaygroundViewModel @Inject constructor(
                     now = EvalScenarios.NOW,
                 )
                 run.update { it.copy(liveOutput = "", liveAttempt = 0) }
-                val outcome = generator.decide(input, form.value.constrained) { attempt, text ->
+                val outcome = generator.decide(input, form.value.constrained, forceLocal = true) { attempt, text ->
                     run.update { it.copy(liveAttempt = attempt, liveOutput = text) }
                 }
                 val correct = outcome.call?.let(scenario.judge) ?: false

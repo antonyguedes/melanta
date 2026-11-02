@@ -51,6 +51,16 @@ class Device:
                 return line.split("/")[0].split()[-1]
         return ""
 
+    def sent_sms(self):
+        """(endereço, texto) dos SMS enviados, do mais novo para o mais antigo."""
+        out = self.sh("content", "query", "--uri", "content://sms/sent", "--projection", "address:body")
+        return re.findall(r"address=(\S*), body=(.*)", out)
+
+    def contact_phones(self):
+        out = self.sh("content", "query", "--uri", "content://com.android.contacts/data/phones",
+                      "--projection", "display_name:data1")
+        return re.findall(r"display_name=(.*), data1=(.*)", out)
+
     def confirmation_pending(self):
         return "channel=agent_confirm" in self.sh("dumpsys", "notification", "--noredact")
 
@@ -74,18 +84,28 @@ def check_log(events, needle):
     return any(e.get("type") == "action" and needle in e.get("action", "") and e.get("result") == "Ok" for e in events)
 
 
+def digits(text):
+    return re.sub(r"\D", "", text)
+
+
+def check_sms(d, ev, number, text):
+    """Todo SMS desta tarefa foi para o número pedido, com o texto pedido, e a confirmação mostrou isso."""
+    new = d.sent_sms()[:len(d.sent_sms()) - d.sms_before]
+    asked = [e.get("description", "") for e in ev if e.get("type") == "confirmation" and e.get("approved")]
+    return bool(new) and all(digits(a) == number and b == text for a, b in new) and any(number in digits(q) for q in asked)
+
+
 TASKS = {
     "alarme": ("Põe um alarme para 7h", True, lambda d, ev: check_log(ev, "Alarm(hour=7, minute=0")),
     "timer": ("Coloca um timer de 5 minutos", True, lambda d, ev: check_log(ev, "Timer(seconds=300")),
     "busca": ("Pesquisa a previsão do tempo para amanhã", True, lambda d, ev: check_log(ev, "WebSearch(")),
     "youtube": ("Abre o YouTube", True, lambda d, ev: "youtube" in d.foreground()),
-    "discar": ("Liga para 11 98765-4321", True, lambda d, ev: check_log(ev, "Dial(target=")),
+    "discar": ("Liga para 11 98765-4321", True, lambda d, ev: check_log(ev, "Dial(target=11987654321")),
     "contato": ("Crie um contato de telefone com Nome Jose e o numero +55 24 987778990", True,
-                lambda d, ev: "Jose" in d.sh("content", "query", "--uri", "content://com.android.contacts/data/phones",
-                                             "--projection", "display_name")),
+                lambda d, ev: any(n == "Jose" and digits(p) == "5524987778990" for n, p in d.contact_phones())),
     "wifi": ("Desliga o wi-fi", True, lambda d, ev: "disabled" in d.sh("cmd", "wifi", "status").lower()),
     "sms": ("Manda SMS para 11 99999-8888 dizendo oi", True,
-            lambda d, ev: any(e.get("type") == "confirmation" and e.get("approved") for e in ev)),
+            lambda d, ev: check_sms(d, ev, "11999998888", "oi")),
     "rota": ("Me leva até a Avenida Paulista", True, lambda d, ev: check_log(ev, "Navigate(")),
     "evento": ("Marca dentista amanhã às 15h na agenda", True, lambda d, ev: check_log(ev, "Event(")),
 }
@@ -99,6 +119,7 @@ def prepare(dev):
     dev.sh("settings", "put", "secure", "accessibility_enabled", "1")
     dev.sh("pm", "grant", PKG, "android.permission.POST_NOTIFICATIONS")
     dev.sh("svc", "wifi", "enable")
+    dev.sms_before = len(dev.sent_sms())
     # YouTube volta a pedir permissão de notificação na abertura: exercita a passagem de vez para o usuário.
     dev.sh("pm", "revoke", "com.google.android.youtube", "android.permission.POST_NOTIFICATIONS")
     dev.sh("pm", "clear-permission-flags", "com.google.android.youtube", "android.permission.POST_NOTIFICATIONS",

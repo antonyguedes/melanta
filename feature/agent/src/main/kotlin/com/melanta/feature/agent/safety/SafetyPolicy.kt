@@ -1,10 +1,11 @@
 package com.melanta.feature.agent.safety
 
 import com.melanta.core.automation.action.AgentAction
+import com.melanta.core.automation.action.IntentSpec
 import com.melanta.core.automation.action.Target
 import com.melanta.core.automation.screen.ScreenSnapshot
 import com.melanta.core.automation.screen.UiElement
-import java.text.Normalizer
+import com.melanta.core.common.SensitiveContent
 import javax.inject.Inject
 
 sealed interface SafetyDecision {
@@ -26,7 +27,7 @@ class SafetyPolicy @Inject constructor() {
     /** Telas onde o agente não opera, independentemente da ação. */
     fun checkScreen(snapshot: ScreenSnapshot): SafetyDecision {
         val pkg = snapshot.packageName
-        if (BLOCKED_PACKAGE_PREFIXES.any { pkg == it || pkg.startsWith("$it.") }) {
+        if (SensitiveContent.isBlockedPackage(pkg)) {
             return SafetyDecision.Block("Por segurança, o Melanta não opera apps de banco, pagamento ou senhas.")
         }
         val title = normalize(snapshot.title.orEmpty())
@@ -45,20 +46,21 @@ class SafetyPolicy @Inject constructor() {
                     PAYMENT.containsMatchIn(text) ->
                         SafetyDecision.Block("Pagamentos e compras não são feitos pelo agente. Conclua você mesmo.")
                     IRREVERSIBLE.containsMatchIn(text) ->
-                        SafetyDecision.RequireConfirmation("Tocar em \"${labelOf(action.target, snapshot)}\"")
+                        SafetyDecision.RequireConfirmation(
+                            "Tocar em \"${labelOf(action.target, snapshot)}\"" + if (isSending(action, snapshot)) recipientHint(snapshot) else "",
+                        )
                     else -> SafetyDecision.Allow
                 }
             }
             is AgentAction.Type -> {
-                val field = action.target?.let { describe(it, snapshot) }
-                    ?: snapshot.elements.firstOrNull { "focused" in it.flags }?.let(::describe).orEmpty()
+                val field = fieldOf(action, snapshot)
                 when {
-                    SENSITIVE_FIELD.containsMatchIn(field) ->
+                    SensitiveContent.SENSITIVE_FIELD.containsMatchIn(field) ->
                         SafetyDecision.Block("O agente nunca digita senhas, PINs ou dados de cartão.")
                     looksLikeCardNumber(action.text) ->
                         SafetyDecision.Block("O agente nunca digita dados de cartão.")
                     action.submit && !SEARCH_FIELD.containsMatchIn(field) ->
-                        SafetyDecision.RequireConfirmation("Enviar \"${action.text.take(MAX_QUOTE)}\"")
+                        SafetyDecision.RequireConfirmation("Enviar \"${action.text.take(MAX_QUOTE)}\"" + recipientHint(snapshot))
                     else -> SafetyDecision.Allow
                 }
             }
@@ -67,6 +69,79 @@ class SafetyPolicy @Inject constructor() {
         }
     }
 
+    /**
+     * Número ou e-mail que o modelo inventou: SLMs erram dígitos ao copiar, e o erro vira mensagem para um
+     * estranho. O destino precisa estar escrito no pedido, na tela ou em uma notificação. Nomes de contato
+     * não passam por aqui: o telefone deles vem da agenda. Retorna o valor sem origem, ou `null` se estiver ok.
+     */
+    fun unverifiedContact(action: AgentAction, task: String, snapshot: ScreenSnapshot, notifications: List<String>): String? {
+        val value = when (action) {
+            is AgentAction.LaunchIntent -> when (val spec = action.spec) {
+                is IntentSpec.Sms -> spec.recipient
+                is IntentSpec.WhatsApp -> spec.recipient
+                is IntentSpec.Email -> spec.to
+                is IntentSpec.AddContact -> spec.phone
+                // Números curtos (190) só abrem o discador, e quem completa a ligação é o usuário.
+                is IntentSpec.Dial -> spec.target.takeIf { it.count(Char::isDigit) >= MIN_PHONE_DIGITS }
+                else -> null
+            }
+            // Só quando o texto inteiro é um telefone: frases com números e datas são outra coisa.
+            is AgentAction.Type -> action.text.trim().takeIf {
+                it.count(Char::isDigit) >= MIN_PHONE_DIGITS && PHONE.matches(it) && !DATE.containsMatchIn(it)
+            }
+            else -> null
+        } ?: return null
+        val sources = listOf(task) + notifications + snapshot.elements.map { it.label }
+        return when {
+            '@' in value -> value.takeUnless { sources.any { source -> source.contains(value, ignoreCase = true) } }
+            value.any(Char::isLetter) -> null
+            else -> value.takeUnless { sources.any { source -> sameNumberIn(value, source) } }
+        }
+    }
+
+    /**
+     * O pedido cita um telefone, mas a mensagem está para sair de uma tela onde ele não aparece: é outra
+     * conversa. Retorna o número pedido. Não vale para formulários abertos pelo próprio agente, cujo destino
+     * já foi conferido em [unverifiedContact].
+     */
+    fun wrongConversation(action: AgentAction, task: String, snapshot: ScreenSnapshot): String? {
+        if (!isSending(action, snapshot)) return null
+        val asked = PHONE.findAll(task).map { it.value }.filter { it.count(Char::isDigit) >= MIN_FULL_PHONE_DIGITS }.toList()
+        if (asked.isEmpty()) return null
+        return asked.firstOrNull { number -> snapshot.elements.none { sameNumberIn(number, it.label) } }
+    }
+
+    private fun isSending(action: AgentAction, snapshot: ScreenSnapshot): Boolean = when (action) {
+        is AgentAction.Click -> SEND.containsMatchIn(describe(action.target, snapshot))
+        is AgentAction.Type -> action.submit && !SEARCH_FIELD.containsMatchIn(fieldOf(action, snapshot))
+        else -> false
+    }
+
+    /** Confirmação de envio pela tela: mostra o número visível, para o usuário ver para quem vai. */
+    private fun recipientHint(snapshot: ScreenSnapshot): String =
+        snapshot.elements.firstNotNullOfOrNull { element ->
+            PHONE.findAll(element.label).firstOrNull { it.value.count(Char::isDigit) >= MIN_PHONE_DIGITS }?.value
+        }?.let { " (na tela: $it)" }.orEmpty()
+
+    /** O número inteiro precisa bater: um dígito a mais ou a menos é outra pessoa. O DDI 55 e o 0 inicial não contam. */
+    private fun sameNumberIn(number: String, source: String): Boolean {
+        val wanted = canonicalPhone(number)
+        return wanted.isEmpty() || PHONE.findAll(source).any { canonicalPhone(it.value) == wanted }
+    }
+
+    private fun canonicalPhone(text: String): String {
+        val digits = text.filter(Char::isDigit)
+        return when {
+            digits.length >= 12 && digits.startsWith("55") -> digits.removePrefix("55")
+            digits.startsWith("0") -> digits.removePrefix("0")
+            else -> digits
+        }
+    }
+
+    private fun fieldOf(action: AgentAction.Type, snapshot: ScreenSnapshot): String =
+        action.target?.let { describe(it, snapshot) }
+            ?: snapshot.elements.firstOrNull { "focused" in it.flags }?.let(::describe).orEmpty()
+
     private fun describe(target: Target, snapshot: ScreenSnapshot): String = when (target) {
         is Target.ById -> snapshot.byId(target.index)?.let(::describe).orEmpty()
         is Target.ByText -> normalize(target.text)
@@ -74,8 +149,9 @@ class SafetyPolicy @Inject constructor() {
         is Target.ByCoordinates -> ""
     }
 
+    // A flag `password` vale mesmo quando o rótulo não diz nada: o campo pode ter só o texto digitado.
     private fun describe(element: UiElement): String =
-        normalize(element.label + " " + element.viewId.orEmpty().substringAfter("/").replace('_', ' '))
+        normalize(element.label + " " + element.viewId.orEmpty().substringAfter("/").replace('_', ' ') + " " + element.flags.filter { it == "password" }.joinToString(" "))
 
     private fun labelOf(target: Target, snapshot: ScreenSnapshot): String =
         ((target as? Target.ById)?.let { snapshot.byId(it.index)?.label } ?: target.toString()).take(MAX_QUOTE)
@@ -95,48 +171,35 @@ class SafetyPolicy @Inject constructor() {
 
     companion object {
         private const val MAX_QUOTE = 40
-
-        /** Bancos, carteiras, cripto, gerenciadores de senha e autenticadores (prefixo de pacote). */
-        val BLOCKED_PACKAGE_PREFIXES = listOf(
-            "com.nu.production", "br.com.intermedium", "com.itau", "br.com.itau", "com.bradesco", "br.com.bradesco",
-            "com.santander", "br.com.santander", "br.com.bb.android", "br.gov.caixa", "br.com.gabba.Caixa",
-            "com.c6bank", "br.com.original", "com.btgpactual", "com.mercadopago.wallet", "com.picpay",
-            "com.paypal", "com.google.android.apps.walletnfcrel", "com.samsung.android.spay", "com.revolut",
-            "com.transferwise", "com.binance", "com.coinbase", "br.gov.meugovbr",
-            "com.x8bit.bitwarden", "com.lastpass", "com.agilebits.onepassword", "com.dashlane",
-            "keepass2android", "com.authy", "com.google.android.apps.authenticator2", "com.azure.authenticator",
-        )
+        private const val MIN_PHONE_DIGITS = 8
+        /** Com DDD. Menos que isso pode ser um protocolo citado no texto da mensagem. */
+        private const val MIN_FULL_PHONE_DIGITS = 10
+        private val PHONE = Regex("""\+?\d(?:[\s().-]?\d)*""")
+        private val SEND = SensitiveContent.words("enviar", "send")
+        private val DATE = Regex("""\b\d{4}-\d{2}-\d{2}\b""")
 
         private val SETTINGS_PACKAGES = setOf("com.android.settings", "com.google.android.settings.intelligence")
 
-        private fun words(vararg terms: String) =
-            Regex(terms.joinToString("|", prefix = "\\b(", postfix = ")\\b") { Regex.escape(it) })
-
-        private val SECURITY_SETTINGS = words(
+        private val SECURITY_SETTINGS = SensitiveContent.words(
             "seguranca", "security", "senha", "senhas", "password", "passwords", "passkeys", "bloqueio de tela",
             "screen lock", "impressao digital", "fingerprint", "biometria", "biometrics", "device admin",
             "administrador do dispositivo", "chaves de acesso",
         )
 
-        private val PAYMENT = words(
+        private val PAYMENT = SensitiveContent.words(
             "pagar", "pagamento", "confirmar pagamento", "finalizar compra", "comprar", "comprar agora",
             "assinar", "assinatura", "transferir", "transferencia", "pix", "enviar dinheiro", "doar",
             "pay", "payment", "checkout", "buy", "buy now", "purchase", "place order", "subscribe", "send money",
             "transfer", "donate",
         )
 
-        private val IRREVERSIBLE = words(
+        private val IRREVERSIBLE = SensitiveContent.words(
             "enviar", "send", "publicar", "postar", "post", "excluir", "delete", "apagar", "remover", "remove",
             "desinstalar", "uninstall", "ligar", "call", "chamar", "confirmar", "confirm", "aceitar", "accept",
             "bloquear", "block", "sair da conta", "log out", "logout", "redefinir", "reset", "formatar",
         )
 
-        private val SENSITIVE_FIELD = words(
-            "senha", "password", "passcode", "pin", "cvv", "cvc", "codigo de seguranca", "security code",
-            "numero do cartao", "card number", "cartao", "token", "codigo de verificacao", "verification code", "otp",
-        )
-
-        private val SEARCH_FIELD = words("pesquisar", "pesquisa", "buscar", "busca", "search", "procurar", "url", "endereco")
+        private val SEARCH_FIELD = SensitiveContent.words("pesquisar", "pesquisa", "buscar", "busca", "search", "procurar", "url", "endereco")
 
         /** 14 a 19 dígitos seguidos (espaços ou hífens opcionais); o `+` capturado separa telefones internacionais. */
         private val CARD_NUMBER = Regex("""\+?\d(?:[ -]?\d){13,18}""")
@@ -151,8 +214,7 @@ class SafetyPolicy @Inject constructor() {
             if (i % 2 == 1) (d * 2).let { if (it > 9) it - 9 else it } else d
         }.sum() % 10 == 0
 
-        fun normalize(text: String): String =
-            Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
+        fun normalize(text: String): String = SensitiveContent.normalize(text)
     }
 }
 

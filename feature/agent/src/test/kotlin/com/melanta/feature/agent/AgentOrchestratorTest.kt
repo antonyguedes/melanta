@@ -232,7 +232,8 @@ class AgentOrchestratorTest {
 
     @Test
     fun `done logo apos abrir formulario e rejeitado ate tocar em salvar`() = runTest {
-        begin()
+        val contactTask = "Salva o Jose, +55 24 98777-8990"
+        assertTrue(controller.start(contactTask))
         val histories = mutableListOf<List<String>>()
         orchestrator(
             screens = { screen("com.google.android.contacts", "Salvar", "edit:Nome", hashSalt = it) },
@@ -243,9 +244,9 @@ class AgentOrchestratorTest {
                 """{"thought":"pronto","tool":"done","args":{"ok":true,"msg":"Contato criado."}}""",
             ),
             onDecide = { histories += it.history.toList() },
-        ).run(task)
+        ).run(contactTask)
 
-        assertEquals(AgentState.Finished(task, "Contato “Jose” salvo."), controller.state.value)
+        assertEquals(AgentState.Finished(contactTask, "Contato “Jose” salvo."), controller.state.value)
         assertEquals("""intent add_contact Jose | +5524987778990 -> ok, next: tap "Salvar"""", histories[1].single())
         assertTrue(histories.toString(), histories[2].last().startsWith("done -> rejected"))
         assertEquals(2, executed.size)
@@ -253,14 +254,15 @@ class AgentOrchestratorTest {
 
     @Test
     fun `done insistente sem enviar termina como falha`() = runTest {
-        begin()
+        val smsTask = "SMS para 11999998888"
+        assertTrue(controller.start(smsTask))
         orchestrator(
             screens = { screen("com.google.android.apps.messaging", "Enviar", hashSalt = it) },
             decisions = listOf(
                 """{"thought":"sms","tool":"intent","args":{"kind":"sms","value":"11999998888|oi"}}""",
                 """{"thought":"pronto","tool":"done","args":{"ok":true,"msg":"SMS enviado."}}""",
             ),
-        ).run(task)
+        ).run(smsTask)
 
         val state = controller.state.value
         assertTrue(state.toString(), state is AgentState.Failed && "Enviar" in state.reason)
@@ -318,6 +320,87 @@ class AgentOrchestratorTest {
         ).run(wifiTask)
 
         assertEquals(AgentState.Finished(wifiTask, "Wi‑Fi já estava desligado."), controller.state.value)
+        assertTrue(executed.isEmpty())
+    }
+
+    @Test
+    fun `numero que nao esta no pedido volta como erro e o certo segue com confirmacao detalhada`() = runTest {
+        val smsTask = "Manda SMS para 11 99999-8888 dizendo oi"
+        assertTrue(controller.start(smsTask))
+        val histories = mutableListOf<List<String>>()
+        val agent = orchestrator(
+            screens = { screen("com.google.android.apps.messaging", "Send SMS", hashSalt = it) },
+            decisions = listOf(
+                """{"thought":"sms","tool":"intent","args":{"kind":"sms","value":"119999988888|oi"}}""",
+                """{"thought":"sms","tool":"intent","args":{"kind":"sms","value":"11 99999-8888|oi"}}""",
+                """{"thought":"enviar","tool":"click","args":{"id":1}}""",
+            ),
+            onDecide = { histories += it.history.toList() },
+        )
+        val job = launch { agent.run(smsTask) }
+        runCurrent()
+
+        val awaiting = controller.state.value as AgentState.AwaitingConfirmation
+        assertEquals("Enviar SMS para 11 99999-8888: “oi”", awaiting.description)
+        assertEquals("o número errado não abriu formulário", 1, executed.size)
+        assertTrue(histories[1].single(), histories[1].single().contains("rejected"))
+
+        controller.confirm(true)
+        job.join()
+        assertEquals(AgentState.Finished(smsTask, "SMS enviado para 11 99999-8888."), controller.state.value)
+    }
+
+    @Test
+    fun `tocar em enviar numa conversa com outro numero nao executa`() = runTest {
+        val smsTask = "Manda SMS para 11 99999-8888 dizendo oi"
+        assertTrue(controller.start(smsTask))
+        val histories = mutableListOf<List<String>>()
+        orchestrator(
+            screens = { screen("com.google.android.apps.messaging", "Send SMS", "119999988888", hashSalt = it) },
+            decisions = listOf("""{"thought":"enviar","tool":"click","args":{"id":1}}"""),
+            onDecide = { histories += it.history.toList() },
+        ).run(smsTask)
+
+        assertTrue("nada pode ser tocado", executed.isEmpty())
+        assertTrue(histories[1].single(), "not the conversation" in histories[1].single())
+        val state = controller.state.value
+        assertTrue(state.toString(), state is AgentState.Failed && "Nada foi enviado" in state.reason)
+    }
+
+    @Test
+    fun `digitar e enviar numa conversa com outro numero nao executa, mas o formulario do agente passa`() = runTest {
+        val smsTask = "Manda SMS para 11 99999-8888 dizendo oi"
+        assertTrue(controller.start(smsTask))
+        val job = launch {
+            orchestrator(
+                // Sem o número na tela, como no Messages: o destino do formulário já foi conferido no intent.
+                screens = { screen("com.google.android.apps.messaging", "edit:Mensagem", "Send SMS", hashSalt = it) },
+                decisions = listOf(
+                    """{"thought":"digitar","tool":"type","args":{"id":1,"text":"oi","enter":true}}""",
+                    """{"thought":"sms","tool":"intent","args":{"kind":"sms","value":"11 99999-8888|oi"}}""",
+                    """{"thought":"enviar","tool":"click","args":{"id":2}}""",
+                ),
+            ).run(smsTask)
+        }
+        runCurrent()
+        assertEquals("a digitação com envio foi recusada", listOf<AgentAction>(AgentAction.LaunchIntent(IntentSpec.Sms("11 99999-8888", "oi"))), executed)
+        assertTrue(controller.state.value is AgentState.AwaitingConfirmation)
+        controller.confirm(true)
+        job.join()
+        assertEquals(AgentState.Finished(smsTask, "SMS enviado para 11 99999-8888."), controller.state.value)
+    }
+
+    @Test
+    fun `insistir em numero inventado encerra sem enviar nada`() = runTest {
+        val smsTask = "Manda SMS para 11 99999-8888 dizendo oi"
+        assertTrue(controller.start(smsTask))
+        orchestrator(
+            screens = { screen("com.google.android.apps.messaging", "Send SMS", hashSalt = it) },
+            decisions = listOf("""{"thought":"sms","tool":"intent","args":{"kind":"sms","value":"119999988888|oi"}}"""),
+        ).run(smsTask)
+
+        val state = controller.state.value
+        assertTrue(state.toString(), state is AgentState.Failed && "Nada foi enviado" in state.reason)
         assertTrue(executed.isEmpty())
     }
 

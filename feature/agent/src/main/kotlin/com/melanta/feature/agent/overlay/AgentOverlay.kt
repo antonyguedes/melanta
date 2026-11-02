@@ -13,6 +13,8 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.melanta.core.ai.cloud.InferenceMode
+import com.melanta.core.ai.cloud.InferenceSettings
 import com.melanta.core.automation.service.AccessibilityBridge
 import com.melanta.feature.agent.AgentController
 import com.melanta.feature.agent.R
@@ -30,6 +32,7 @@ import kotlin.math.abs
 class AgentOverlay @Inject constructor(
     private val bridge: AccessibilityBridge,
     private val controller: AgentController,
+    private val inference: InferenceSettings,
 ) {
     private var root: LinearLayout? = null
     private var status: TextView? = null
@@ -72,9 +75,10 @@ class AgentOverlay @Inject constructor(
 
     fun render(state: AgentState) {
         val context = root?.context ?: return
+        val cloud = inference.state.value.mode == InferenceMode.Cloud
         status?.text = when (state) {
-            is AgentState.LoadingModel -> context.getString(R.string.overlay_loading)
-            is AgentState.Running -> context.getString(R.string.overlay_step, state.step + 1)
+            is AgentState.LoadingModel -> context.getString(if (cloud) R.string.overlay_cloud else R.string.overlay_loading)
+            is AgentState.Running -> context.getString(if (cloud) R.string.overlay_cloud_step else R.string.overlay_step, state.step + 1)
             is AgentState.AwaitingConfirmation -> context.getString(R.string.overlay_confirm)
             else -> ""
         }

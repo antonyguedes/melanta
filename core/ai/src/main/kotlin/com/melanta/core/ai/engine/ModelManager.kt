@@ -43,7 +43,7 @@ class ModelManager @Inject constructor(
     private val engine: LlmEngine,
     private val store: ModelStore,
     dispatchers: DispatcherProvider,
-) : ComponentCallbacks2 {
+) : ComponentCallbacks2, TextGenerator {
 
     private val mutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + dispatchers.default)
@@ -51,7 +51,7 @@ class ModelManager @Inject constructor(
     private var loadedConfig: ModelConfig? = null
 
     val state: StateFlow<EngineState> = engine.state
-    val lastStats: StateFlow<GenerationStats?> = engine.lastStats
+    override val lastStats: StateFlow<GenerationStats?> = engine.lastStats
 
     init {
         context.registerComponentCallbacks(this)
@@ -86,7 +86,7 @@ class ModelManager @Inject constructor(
      * Gera com exclusividade: outra chamada espera esta terminar. O timer de ociosidade
      * fica parado enquanto o stream está sendo coletado.
      */
-    fun generate(prompt: LlmPrompt, params: GenParams = GenParams()): Flow<String> = flow {
+    override fun generate(prompt: LlmPrompt, params: GenParams): Flow<String> = flow {
         mutex.withLock {
             idleJob?.cancel()
             try {

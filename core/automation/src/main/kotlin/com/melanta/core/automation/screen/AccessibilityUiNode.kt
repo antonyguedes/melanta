@@ -29,6 +29,7 @@ class AccessibilityUiNode(val info: AccessibilityNodeInfo) : UiNode {
     override val isEnabled: Boolean = info.isEnabled
     override val isFocused: Boolean = info.isFocused
     override val isScrollable: Boolean = info.isScrollable
+    override val isPassword: Boolean = info.isPassword
     override val childCount: Int = info.childCount
 
     override fun child(index: Int): UiNode? = info.getChild(index)?.let(::AccessibilityUiNode)

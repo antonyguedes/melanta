@@ -15,6 +15,12 @@ val sharedAi = rootProject.file("core/ai/src/main/kotlin/com/melanta/core/ai")
 
 sourceSets.main {
     kotlin.srcDirs("src/main/kotlin", "$sharedAi/prompt", "$sharedAi/tool", "$sharedAi/eval")
+    // Só o cliente da nuvem e os tipos que ele usa; o resto destas pastas depende de Android.
+    kotlin.srcDirs("$sharedAi/engine", "$sharedAi/cloud")
+    listOf(
+        "LiteRtLmEngine", "ModelManager", "ToolCallGenerator", "InferenceRouter",
+        "ApiKeyVault", "CloudAccess", "InferenceSettings", "ScreenRedactor",
+    ).forEach { kotlin.exclude("**/$it.kt") }
 }
 
 java {

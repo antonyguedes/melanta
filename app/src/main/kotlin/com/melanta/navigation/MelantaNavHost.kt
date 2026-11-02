@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.melanta.automation.AutomationDebugRoute
+import com.melanta.engine.EngineSettingsRoute
 import com.melanta.feature.agent.ui.AgentRoute
 import com.melanta.models.ModelsRoute
 import com.melanta.permissions.PermissionOnboardingRoute
@@ -20,6 +21,9 @@ data object AgentDestination
 
 @Serializable
 data object ModelsDestination
+
+@Serializable
+data object EngineDestination
 
 @Serializable
 data object PlaygroundDestination
@@ -51,6 +55,7 @@ fun MelantaNavHost(startWithOnboarding: () -> Boolean) {
         composable<AgentDestination> {
             AgentRoute(
                 onOpenModels = { navController.navigate(ModelsDestination) },
+                onOpenEngine = { navController.navigate(EngineDestination) },
                 onOpenPermissions = { navController.navigate(OnboardingDestination) },
                 onOpenPlayground = { navController.navigate(PlaygroundDestination) },
                 onOpenAutomation = { navController.navigate(AutomationDebugDestination) },
@@ -58,6 +63,9 @@ fun MelantaNavHost(startWithOnboarding: () -> Boolean) {
         }
         composable<ModelsDestination> {
             ModelsRoute(onBack = { navController.popBackStack() })
+        }
+        composable<EngineDestination> {
+            EngineSettingsRoute(onBack = { navController.popBackStack() })
         }
         composable<PlaygroundDestination> {
             PlaygroundRoute(onBack = { navController.popBackStack() })

@@ -77,6 +77,7 @@ import com.melanta.feature.agent.state.isTerminal
 @Composable
 fun AgentRoute(
     onOpenModels: () -> Unit,
+    onOpenEngine: () -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenPlayground: () -> Unit,
     onOpenAutomation: () -> Unit,
@@ -95,6 +96,7 @@ fun AgentRoute(
         onConfirm = viewModel::confirm,
         onDismiss = viewModel::dismiss,
         onOpenModels = onOpenModels,
+        onOpenEngine = onOpenEngine,
         onOpenPermissions = onOpenPermissions,
         onOpenPlayground = onOpenPlayground,
         onOpenAutomation = onOpenAutomation,
@@ -110,6 +112,7 @@ private fun AgentScreen(
     onConfirm: (Boolean) -> Unit,
     onDismiss: () -> Unit,
     onOpenModels: () -> Unit,
+    onOpenEngine: () -> Unit,
     onOpenPermissions: () -> Unit,
     onOpenPlayground: () -> Unit,
     onOpenAutomation: () -> Unit,
@@ -134,7 +137,7 @@ private fun AgentScreen(
                     IconButton(onClick = onOpenPermissions) {
                         Icon(Icons.Filled.Lock, contentDescription = stringResource(R.string.agent_permissions))
                     }
-                    ToolsMenu(onOpenPlayground, onOpenAutomation)
+                    ToolsMenu(onOpenEngine, onOpenPlayground, onOpenAutomation)
                 },
             )
         },
@@ -155,7 +158,13 @@ private fun AgentScreen(
                 }
             }
             if (state.modelName == null) {
-                item { SetupCard(stringResource(R.string.agent_setup_model), stringResource(R.string.agent_models), onOpenModels) }
+                item {
+                    if (state.cloud) {
+                        SetupCard(stringResource(R.string.agent_setup_cloud), stringResource(R.string.agent_engine), onOpenEngine)
+                    } else {
+                        SetupCard(stringResource(R.string.agent_setup_model), stringResource(R.string.agent_models), onOpenModels)
+                    }
+                }
             }
 
             item {
@@ -207,13 +216,17 @@ private fun AgentScreen(
 }
 
 @Composable
-private fun ToolsMenu(onOpenPlayground: () -> Unit, onOpenAutomation: () -> Unit) {
+private fun ToolsMenu(onOpenEngine: () -> Unit, onOpenPlayground: () -> Unit, onOpenAutomation: () -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.agent_tools))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MelantaColors.SurfaceHigh) {
+            DropdownMenuItem(text = { Text(stringResource(R.string.agent_engine)) }, onClick = {
+                expanded = false
+                onOpenEngine()
+            })
             DropdownMenuItem(text = { Text(stringResource(R.string.agent_playground)) }, onClick = {
                 expanded = false
                 onOpenPlayground()
@@ -272,6 +285,9 @@ private fun StatusHero(state: AgentUiState) {
 
 @Composable
 private fun modelLabel(state: AgentUiState): String {
+    if (state.cloud) {
+        return state.modelName?.let { stringResource(R.string.agent_model_cloud, it) } ?: stringResource(R.string.agent_model_cloud_setup)
+    }
     val name = state.modelName ?: return stringResource(R.string.agent_model_none)
     return when (state.engine) {
         is EngineState.Ready -> stringResource(R.string.agent_model_ready, name, (state.engine as EngineState.Ready).backend.name.uppercase())

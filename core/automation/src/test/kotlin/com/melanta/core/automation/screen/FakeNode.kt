@@ -18,6 +18,7 @@ data class FakeNode(
     override val isEnabled: Boolean = true,
     override val isFocused: Boolean = false,
     override val isScrollable: Boolean = false,
+    override val isPassword: Boolean = false,
     val children: List<FakeNode> = emptyList(),
 ) : UiNode {
     override val childCount: Int get() = children.size

@@ -4,6 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.melanta.core.ai.cloud.ApiKeyStore
+import com.melanta.core.ai.cloud.CloudConfig
+import com.melanta.core.ai.cloud.CloudProvider
+import com.melanta.core.ai.cloud.InferenceMode
+import com.melanta.core.ai.cloud.InferenceSettings
 import com.melanta.core.automation.notifications.NotificationBuffer
 import com.melanta.feature.agent.AgentController
 import com.melanta.feature.agent.debug.ManualActionRunner
@@ -37,6 +42,7 @@ class AutomationDebugReceiver : BroadcastReceiver() {
                         notifications.recentLines().takeIf { it.isNotEmpty() }?.joinToString(" | ", "\nNOTIFS: ").orEmpty()
                     ACTION_EXEC -> intent.getStringExtra(EXTRA_JSON)?.let { runner.run(it).describe() } ?: "faltou --es json"
                     ACTION_CONFIRM -> entryPoint.agentController().confirm(true).let { "confirmação: permitir" }
+                    ACTION_INFERENCE -> setInference(entryPoint, intent)
                     ACTION_DENY -> entryPoint.agentController().confirm(false).let { "confirmação: negar" }
                     else -> "ação desconhecida"
                 }
@@ -49,12 +55,30 @@ class AutomationDebugReceiver : BroadcastReceiver() {
         }
     }
 
+    /** `--es base_url http://10.0.2.2:8123/v1 --es model fake --es key teste`; sem `base_url`, volta ao modo Local. */
+    private suspend fun setInference(entryPoint: DebugEntryPoint, intent: Intent): String {
+        val baseUrl = intent.getStringExtra("base_url")
+        val settings = entryPoint.inferenceSettings()
+        if (baseUrl == null) {
+            settings.update { it.copy(mode = InferenceMode.Local) }
+            return "modo: Local"
+        }
+        val config = CloudConfig(CloudProvider.Custom, baseUrl, intent.getStringExtra("model").orEmpty())
+        intent.getStringExtra("key")?.let { entryPoint.apiKeys().put(config.destinationId, it) }
+        settings.update {
+            it.copy(mode = InferenceMode.Cloud, cloud = config, consentedDestinations = it.consentedDestinations + config.destinationId)
+        }
+        return "modo: Nuvem ${config.destinationId}"
+    }
+
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     internal interface DebugEntryPoint {
         fun manualActionRunner(): ManualActionRunner
         fun notificationBuffer(): NotificationBuffer
         fun agentController(): AgentController
+        fun inferenceSettings(): InferenceSettings
+        fun apiKeys(): ApiKeyStore
     }
 
     private companion object {
@@ -63,6 +87,7 @@ class AutomationDebugReceiver : BroadcastReceiver() {
         const val ACTION_EXEC = "com.melanta.debug.EXEC"
         const val ACTION_CONFIRM = "com.melanta.debug.CONFIRM"
         const val ACTION_DENY = "com.melanta.debug.DENY"
+        const val ACTION_INFERENCE = "com.melanta.debug.INFERENCE"
         const val EXTRA_JSON = "json"
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
