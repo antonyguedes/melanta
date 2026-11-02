@@ -65,8 +65,15 @@ class CloudNotReadyException(message: String) : CloudException(message)
 
 class CloudAuthException : CloudException("O provedor recusou a chave de API. Confira a chave em Motor de IA.")
 
-class CloudRateLimitException(val retryAfterSeconds: Long?) :
-    CloudException("O provedor limitou as requisições. Tente de novo em instantes.")
+class CloudRateLimitException(val retryAfterSeconds: Long?) : CloudException(rateLimitMessage(retryAfterSeconds))
+
+/** Uma espera longa não é limite por minuto: é a cota do período que acabou, e o usuário precisa saber disso. */
+private fun rateLimitMessage(seconds: Long?): String = when {
+    seconds == null -> "O provedor limitou as requisições da sua conta. Espere um minuto e tente de novo."
+    seconds < 60 -> "O provedor limitou as requisições da sua conta. Espere $seconds s e tente de novo."
+    seconds < 3_600 -> "O provedor limitou as requisições da sua conta. Espere ${seconds / 60 + 1} min e tente de novo."
+    else -> "A cota da sua conta neste provedor acabou. Ela volta em cerca de ${seconds / 3_600 + 1} h. Até lá, troque de modelo ou de provedor em Motor de IA, ou use o modo Local."
+}
 
 class CloudUnavailableException(message: String, cause: Throwable? = null) : CloudException(message, cause)
 

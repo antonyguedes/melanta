@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="Melanta: agente de IA que roda no seu Android">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-label="Melanta: the AI agent that runs on your Android">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#4A2E4B"/>
@@ -19,6 +19,6 @@
   <rect x="920" y="40" width="280" height="280" rx="28" fill="none" stroke="#D9B8DA" stroke-width="3"/>
 
   <text x="72" y="170" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="96" font-weight="700" letter-spacing="-2" fill="#FFFFFF">Melanta</text>
-  <text x="76" y="222" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="30" fill="#D9B8DA">O agente de IA que roda no seu Android.</text>
-  <text x="76" y="264" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="22" fill="#D9B8DA" fill-opacity="0.75">Enxerga a tela e age nos apps. Local por padrão, nuvem se você quiser.</text>
+  <text x="76" y="222" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="30" fill="#D9B8DA">The AI agent that runs on your Android.</text>
+  <text x="76" y="264" font-family="Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="22" fill="#D9B8DA" fill-opacity="0.75">Sees the screen and acts in your apps. Local by default, cloud if you want.</text>
 </svg>

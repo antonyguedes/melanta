@@ -3,6 +3,7 @@ package com.melanta.feature.agent
 import com.melanta.core.ai.prompt.PromptInput
 import com.melanta.core.ai.prompt.ScreenContext
 import com.melanta.core.ai.prompt.ScreenLine
+import com.melanta.core.ai.tool.ParseResult
 import com.melanta.core.ai.tool.ToolCall
 import com.melanta.core.automation.action.ActionResult
 import com.melanta.core.automation.action.AgentAction
@@ -157,6 +158,12 @@ class AgentOrchestrator @Inject constructor(
             val outcome = reasoner.decide(
                 PromptInput(task, history, snapshot.toScreenContext(), perception.recentNotifications(), now()),
             )
+            // Respostas recusadas somem do prompt seguinte: o log é o único lugar onde dá para ver o motivo.
+            outcome.attempts.forEachIndexed { attempt, tried ->
+                (tried.result as? ParseResult.Failure)?.let { failure ->
+                    logger.event("invalid_output", "step" to step, "attempt" to attempt, "error" to failure.error.name, "detail" to failure.detail, "raw" to tried.raw.take(MAX_LOGGED_OUTPUT))
+                }
+            }
             val call = outcome.call ?: return End.Failed("O modelo não conseguiu decidir a próxima ação.")
             controller.moveTo(AgentState.Running(task, step, Phase.Reasoning, call.thought))
             logger.event("decision", "step" to step, "thought" to call.thought, "tool" to call.name, "args" to call.args, "attempts" to outcome.attempts.size)
@@ -431,6 +438,7 @@ class AgentOrchestrator @Inject constructor(
     private companion object {
         const val OK = "-> ok"
         const val NO_CHANGE = ", but the SCREEN did not change"
+        const val MAX_LOGGED_OUTPUT = 300
         const val NEXT_HINT = ", next: tap "
         val SEND_BUTTON = Regex("""^(send|enviar)\b""", RegexOption.IGNORE_CASE)
         val SAVE_BUTTON = Regex("""^(save|salvar|guardar|done|concluído|concluido)\b""", RegexOption.IGNORE_CASE)

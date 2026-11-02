@@ -117,11 +117,20 @@ class SafetyPolicy @Inject constructor() {
         else -> false
     }
 
-    /** Confirmação de envio pela tela: mostra o número visível, para o usuário ver para quem vai. */
-    private fun recipientHint(snapshot: ScreenSnapshot): String =
-        snapshot.elements.firstNotNullOfOrNull { element ->
+    /**
+     * Confirmação de envio pela tela: mostra para quem vai, e só quando há evidência. O título da janela vale
+     * se também estiver escrito na tela (o nome da conversa, não o do app). Sem isso, um telefone visível.
+     * Sem nenhum dos dois, não sugere nada: um nome errado aqui é pior que nenhum.
+     */
+    private fun recipientHint(snapshot: ScreenSnapshot): String {
+        val title = snapshot.title?.takeIf { title ->
+            title.length >= 2 && snapshot.elements.any { it.role != "edit" && it.label.contains(title, ignoreCase = true) }
+        }
+        val phone = snapshot.elements.firstNotNullOfOrNull { element ->
             PHONE.findAll(element.label).firstOrNull { it.value.count(Char::isDigit) >= MIN_PHONE_DIGITS }?.value
-        }?.let { " (na tela: $it)" }.orEmpty()
+        }
+        return (title ?: phone)?.let { " (na tela: ${it.take(MAX_QUOTE)})" }.orEmpty()
+    }
 
     /** O número inteiro precisa bater: um dígito a mais ou a menos é outra pessoa. O DDI 55 e o 0 inicial não contam. */
     private fun sameNumberIn(number: String, source: String): Boolean {

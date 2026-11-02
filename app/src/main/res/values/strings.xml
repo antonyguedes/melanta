@@ -13,7 +13,10 @@
     <string name="engine_base_url">Endereço (https://…)</string>
     <string name="engine_model">Modelo</string>
     <string name="engine_api_key">Chave de API</string>
-    <string name="engine_api_key_saved">Chave salva, cifrada no aparelho. Digite outra para trocar.</string>
+    <string name="engine_api_key_saved">Chave salva, cifrada no aparelho.</string>
+    <string name="engine_add_key">Adicionar outra chave</string>
+    <string name="engine_cancel">Cancelar</string>
+    <string name="engine_authorize">Autorizar envio</string>
     <string name="engine_save_key">Salvar chave</string>
     <string name="engine_remove_key">Remover chave</string>
     <string name="engine_test">Testar conexão</string>

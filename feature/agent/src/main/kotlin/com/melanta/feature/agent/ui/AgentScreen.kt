@@ -160,7 +160,7 @@ private fun AgentScreen(
             if (state.modelName == null) {
                 item {
                     if (state.cloud) {
-                        SetupCard(stringResource(R.string.agent_setup_cloud), stringResource(R.string.agent_engine), onOpenEngine)
+                        SetupCard(state.cloudProblem.orEmpty(), stringResource(R.string.agent_engine), onOpenEngine)
                     } else {
                         SetupCard(stringResource(R.string.agent_setup_model), stringResource(R.string.agent_models), onOpenModels)
                     }

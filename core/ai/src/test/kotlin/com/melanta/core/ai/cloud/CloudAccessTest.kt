@@ -23,9 +23,10 @@ class CloudAccessTest {
 
     private val keys = object : ApiKeyStore {
         val map = mutableMapOf<String, String>()
+        override val revision = MutableStateFlow(0)
         override fun get(destinationId: String) = map[destinationId]
-        override fun put(destinationId: String, apiKey: String) { map[destinationId] = apiKey }
-        override fun remove(destinationId: String) { map.remove(destinationId) }
+        override fun put(destinationId: String, apiKey: String) { map[destinationId] = apiKey; revision.update { it + 1 } }
+        override fun remove(destinationId: String) { map.remove(destinationId); revision.update { it + 1 } }
     }
 
     private suspend fun assertNotReady(access: CloudAccess) {
@@ -43,11 +44,11 @@ class CloudAccessTest {
         val settings = FakeSettings(InferencePreferences(mode = InferenceMode.Cloud, cloud = config))
         val access = CloudAccess(settings, keys)
         assertNotReady(access)
-        assertFalse(access.isReady(settings.current()))
+        assertTrue(access.problem(settings.current())!!.contains("autorizar"))
 
         settings.update { it.copy(consentedDestinations = setOf(config.destinationId)) }
         assertEquals("k", access.endpoint().apiKey)
-        assertTrue(access.isReady(settings.current()))
+        assertNull(access.problem(settings.current()))
     }
 
     @Test
@@ -63,6 +64,22 @@ class CloudAccessTest {
 
         settings.update { it.copy(consentedDestinations = it.consentedDestinations + moved.destinationId) }
         assertNull(access.endpoint().apiKey)
+    }
+
+    @Test
+    fun `trocar de provedor com chave salva avisa que falta a autorizacao, nao a chave`() = runTest {
+        val groq = CloudConfig(CloudProvider.Groq)
+        val gemini = CloudConfig(CloudProvider.Gemini)
+        keys.put(gemini.destinationId, "chave-gemini")
+        val settings = FakeSettings(InferencePreferences(mode = InferenceMode.Cloud, cloud = gemini, consentedDestinations = setOf(groq.destinationId)))
+        val access = CloudAccess(settings, keys)
+
+        val problem = access.problem(settings.current())!!
+        assertTrue(problem, problem.contains("autorizar") && problem.contains("Gemini"))
+        assertFalse(problem, problem.contains("chave"))
+
+        keys.remove(gemini.destinationId)
+        assertTrue(access.problem(settings.current())!!.contains("chave de API de Google Gemini"))
     }
 
     @Test
@@ -106,6 +123,20 @@ class CloudAccessTest {
         } catch (_: CloudAuthException) {
             assertEquals(1, calls)
         }
+
+        // Limite por minuto, sem prazo do provedor: as esperas somam mais de um minuto antes de desistir.
+        val start = testScheduler.currentTime
+        calls = 0
+        try {
+            withCloudRetry<Unit> { calls++; throw CloudRateLimitException(retryAfterSeconds = null) }
+            fail()
+        } catch (_: CloudRateLimitException) {
+            assertEquals(4, calls)
+            assertTrue(testScheduler.currentTime - start >= 60_000)
+        }
+
+        calls = 0
+        assertEquals("ok", withCloudRetry { if (++calls < 2) throw CloudRateLimitException(retryAfterSeconds = 37) else "ok" })
 
         calls = 0
         try {

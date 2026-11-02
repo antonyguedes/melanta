@@ -125,6 +125,21 @@ class SafetyPolicyTest {
     }
 
     @Test
+    fun `confirmacao de envio pela tela so cita o destinatario com evidencia`() {
+        fun element(id: Int, label: String, top: Int) = UiElement(id, "btn", label, listOf("click"), Bounds(0, top, 500, top + 90), null, 4, null)
+        fun reason(title: String?, vararg labels: String): String {
+            val elements = labels.mapIndexed { i, label -> element(i + 1, label, i * 100) } + element(labels.size + 1, "Enviar", 2200)
+            val chat = ScreenSnapshot("org.telegram.messenger", title, elements, Bounds(0, 0, 1080, 2400))
+            return (policy.evaluate(AgentAction.Click(Target.ById(labels.size + 1)), chat) as SafetyDecision.RequireConfirmation).reason
+        }
+
+        val bubble = "Vídeo, 1 minuto 25 segundos Enviado às 13:00"
+        assertEquals("Tocar em \"Enviar\" (na tela: Aldeia feliz)", reason("Aldeia feliz", bubble, "Aldeia feliz 1 membro"))
+        assertEquals("título é o nome do app, não da conversa", "Tocar em \"Enviar\"", reason("Telegram", bubble, "Ana"))
+        assertEquals("Tocar em \"Enviar\" (na tela: 11 99999-8888)", reason("Messages", "11 99999-8888"))
+    }
+
+    @Test
     fun `telefone com DDI ou numero que nao passa no Luhn nao e cartao`() {
         assertTrue(SafetyPolicy.looksLikeCardNumber("5500-0000-0000-0004"))
         assertTrue(SafetyPolicy.looksLikeCardNumber("cartão 378282246310005"))

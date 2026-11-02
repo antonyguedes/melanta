@@ -229,8 +229,14 @@ class CloudGenerator(
         else -> CloudRequestException(scrub("O provedor recusou o pedido (HTTP $code). ${errorDetail(connection)}", target).trim())
     }
 
-    private fun rateLimit(connection: HttpURLConnection) =
-        CloudRateLimitException(connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull())
+    /** O prazo pode vir no cabeçalho padrão ou, no Gemini, no corpo do erro (`"retryDelay": "37s"`). */
+    private fun rateLimit(connection: HttpURLConnection): CloudRateLimitException {
+        val header = connection.getHeaderField("Retry-After")?.trim()?.toLongOrNull()
+        val body = header ?: runCatching {
+            connection.errorStream?.bufferedReader()?.use { it.readText().take(MAX_ERROR_BODY) }
+        }.getOrNull()?.let { RETRY_DELAY.find(it)?.groupValues?.get(1)?.toDoubleOrNull()?.toLong()?.plus(1) }
+        return CloudRateLimitException(body)
+    }
 
     private fun errorDetail(connection: HttpURLConnection): String = runCatching {
         val text = connection.errorStream?.bufferedReader()?.use { it.readText().take(MAX_ERROR_BODY) }.orEmpty()
@@ -249,6 +255,7 @@ class CloudGenerator(
         const val MAX_ERROR_BODY = 2_000
         const val MAX_ERROR_DETAIL = 200
         const val MIN_REASONING_OUTPUT_TOKENS = 1_024
+        val RETRY_DELAY = Regex(""""retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"""")
         val OPENAI_REASONING_MODEL = Regex("""(^|/)(o\d|gpt-5)""")
         val REASONING_MODEL = Regex("""(^|/)(o\d|gpt-5|gemini-2\.5)""")
     }

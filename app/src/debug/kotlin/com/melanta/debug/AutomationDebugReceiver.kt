@@ -55,13 +55,26 @@ class AutomationDebugReceiver : BroadcastReceiver() {
         }
     }
 
-    /** `--es base_url http://10.0.2.2:8123/v1 --es model fake --es key teste`; sem `base_url`, volta ao modo Local. */
+    /**
+     * `--es base_url http://10.0.2.2:8123/v1 --es model fake --es key teste` configura a nuvem. Sem `base_url`,
+     * `--es mode Cloud` ou `--es mode Local` só troca o modo, sem mexer em provedor nem chave (o padrão é Local).
+     */
     private suspend fun setInference(entryPoint: DebugEntryPoint, intent: Intent): String {
         val baseUrl = intent.getStringExtra("base_url")
         val settings = entryPoint.inferenceSettings()
+        // `--es forget custom|localhost --es provider gemini`: desfaz um teste, deixando a nuvem no provedor pedido.
+        intent.getStringExtra("forget")?.let { destination ->
+            entryPoint.apiKeys().remove(destination)
+            val provider = CloudProvider.fromId(intent.getStringExtra("provider"))
+            settings.update {
+                it.copy(mode = InferenceMode.Cloud, cloud = CloudConfig(provider), consentedDestinations = it.consentedDestinations - destination)
+            }
+            return "esquecido: $destination; nuvem em ${provider.id}"
+        }
         if (baseUrl == null) {
-            settings.update { it.copy(mode = InferenceMode.Local) }
-            return "modo: Local"
+            val mode = if (intent.getStringExtra("mode") == "Cloud") InferenceMode.Cloud else InferenceMode.Local
+            settings.update { it.copy(mode = mode) }
+            return "modo: $mode"
         }
         val config = CloudConfig(CloudProvider.Custom, baseUrl, intent.getStringExtra("model").orEmpty())
         intent.getStringExtra("key")?.let { entryPoint.apiKeys().put(config.destinationId, it) }

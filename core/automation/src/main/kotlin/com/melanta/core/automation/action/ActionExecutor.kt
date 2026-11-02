@@ -63,7 +63,10 @@ class ActionExecutor @Inject constructor(
     private suspend fun click(service: AccessibilityService, target: Target, snapshot: ScreenSnapshot?): ActionResult {
         val resolved = resolve(service, target, snapshot) ?: return ActionResult.Error("Alvo não encontrado: $target")
         resolved.node?.let { node ->
-            val clickable = generateSequence(node) { it.parent }.take(MAX_ANCESTORS).firstOrNull { it.isClickable }
+            // Não sobe além da lista: um clicável em volta dela tocaria outra coisa, não esta linha.
+            val clickable = generateSequence(node) { it.parent }.take(MAX_ANCESTORS)
+                .takeWhile { it.isClickable || !it.isScrollable }
+                .firstOrNull { it.isClickable }
             if (clickable != null && clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return ActionResult.Ok
         }
         val bounds = resolved.bounds ?: return ActionResult.Error("Alvo sem posição na tela")

@@ -13,9 +13,16 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /** Chaves de API por destino ([CloudConfig.destinationId]): a chave de um provedor nunca vai para outro. */
 interface ApiKeyStore {
+    /** Muda a cada chave salva ou removida: as telas usam para reavaliar se a nuvem está pronta. */
+    val revision: StateFlow<Int>
+
     fun get(destinationId: String): String?
     fun put(destinationId: String, apiKey: String)
     fun remove(destinationId: String)
@@ -30,6 +37,8 @@ interface ApiKeyStore {
 class ApiKeyVault @Inject constructor(@ApplicationContext context: Context) : ApiKeyStore {
 
     private val prefs = context.getSharedPreferences("cloud_api_keys", Context.MODE_PRIVATE)
+    private val _revision = MutableStateFlow(0)
+    override val revision: StateFlow<Int> = _revision.asStateFlow()
 
     override fun get(destinationId: String): String? {
         val blob = prefs.getString(destinationId, null)?.let { Base64.decode(it, Base64.NO_WRAP) } ?: return null
@@ -51,10 +60,12 @@ class ApiKeyVault @Inject constructor(@ApplicationContext context: Context) : Ap
         cipher.updateAAD(destinationId.toByteArray())
         val blob = cipher.iv + cipher.doFinal(apiKey.toByteArray())
         prefs.edit().putString(destinationId, Base64.encodeToString(blob, Base64.NO_WRAP)).apply()
+        _revision.update { it + 1 }
     }
 
     override fun remove(destinationId: String) {
         prefs.edit().remove(destinationId).apply()
+        _revision.update { it + 1 }
     }
 
     private fun secretKey(): SecretKey {

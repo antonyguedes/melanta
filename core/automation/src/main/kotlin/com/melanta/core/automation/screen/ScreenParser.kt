@@ -8,6 +8,8 @@ import javax.inject.Inject
  * - Lê de cima para baixo (diálogos antes do app embaixo) e para na primeira janela de app em tela cheia.
  * - Ignora o próprio app, o teclado e barras de sistema pequenas (status e navegação).
  * - Funde o texto de filhos não clicáveis no ancestral clicável (uma linha por item de lista).
+ * - Texto solto em lista rolável vira linha tocável: apps como o Telegram tratam o toque na própria
+ *   lista, e as linhas não se declaram clicáveis (o toque é feito pelas coordenadas).
  * - Interruptor sem rótulo herda o texto da mesma linha ("Wi-Fi") e sempre mostra o estado.
  * - Deduplica e corta em [MAX_ELEMENTS], descartando primeiro o que tem menor prioridade.
  */
@@ -67,13 +69,15 @@ class ScreenParser @Inject constructor() {
     private fun collect(root: UiNode): List<Draft> {
         val drafts = mutableListOf<Draft>()
         val stack = ArrayDeque<Frame>()
-        stack.addLast(Frame(root, depth = 0, owner = null))
+        stack.addLast(Frame(root, depth = 0, owner = null, inList = false))
         while (stack.isNotEmpty()) {
-            val (node, depth, owner) = stack.removeLast()
+            val (node, depth, owner, inList) = stack.removeLast()
             if (!node.isVisibleToUser || depth > MAX_DEPTH) continue
 
+            // Marcável sem clique, solto em lista: é uma linha desenhada pelo app, não um interruptor.
+            val listRowCheckable = node.isCheckable && !node.isClickable && owner == null && inList
             val actionable = node.isClickable || node.isLongClickable || node.isEditable ||
-                node.isCheckable || node.isScrollable
+                (node.isCheckable && !listRowCheckable) || node.isScrollable
             val ownLabel = labelOf(node)
             var childOwner = owner
 
@@ -88,13 +92,17 @@ class ScreenParser @Inject constructor() {
                 if (owner != null) {
                     owner.append(ownLabel)
                 } else if (!node.bounds.isEmpty) {
-                    val role = if (node.className.orEmpty().contains("Image")) "img" else "txt"
-                    drafts += Draft(node, role, emptyList(), if (role == "img") 1 else 2).also { it.append(ownLabel) }
+                    val image = node.className.orEmpty().contains("Image")
+                    drafts += when {
+                        image -> Draft(node, "img", emptyList(), 1)
+                        inList -> Draft(node, LIST_ROW, listOf("click") + listOfNotNull("checked".takeIf { node.isChecked }), 3)
+                        else -> Draft(node, "txt", emptyList(), 2)
+                    }.also { it.append(ownLabel) }
                 }
             }
 
             for (i in node.childCount - 1 downTo 0) {
-                node.child(i)?.let { stack.addLast(Frame(it, depth + 1, childOwner)) }
+                node.child(i)?.let { stack.addLast(Frame(it, depth + 1, childOwner, inList || node.isScrollable)) }
             }
         }
         return drafts
@@ -135,7 +143,14 @@ class ScreenParser @Inject constructor() {
 
     private fun dedupe(drafts: List<Draft>): List<Draft> {
         val seen = HashSet<Triple<String, String, Bounds>>()
-        return drafts.filter { seen.add(Triple(it.role, it.label(), it.bounds)) }
+        return drafts.filter { seen.add(Triple(it.role, it.label(), it.bounds)) }.let { unique ->
+            // A mesma linha de lista descrita duas vezes (o texto e a célula em volta): fica a célula.
+            unique.filterNot { d ->
+                d.role == LIST_ROW && unique.any { o ->
+                    o !== d && o.role == LIST_ROW && o.label() == d.label() && o.bounds != d.bounds && d.bounds in o.bounds
+                }
+            }
+        }
     }
 
     private fun cap(drafts: List<Draft>): List<Draft> {
@@ -194,7 +209,7 @@ class ScreenParser @Inject constructor() {
         else -> 2
     }
 
-    private data class Frame(val node: UiNode, val depth: Int, val owner: Draft?)
+    private data class Frame(val node: UiNode, val depth: Int, val owner: Draft?, val inList: Boolean)
 
     private class Draft(val node: UiNode, val role: String, val flags: List<String>, val priority: Int) {
         val bounds: Bounds = node.bounds
@@ -217,6 +232,7 @@ class ScreenParser @Inject constructor() {
         const val MAX_ELEMENTS = 60
         const val MAX_LABEL = 40
         private val TOGGLE_ROLES = setOf("sw", "chk")
+        private const val LIST_ROW = "item"
         private const val UNTITLED_PROTECTED = "janela protegida do sistema"
         private const val ROW_HEIGHT_FACTOR = 4
         private const val MAX_DEPTH = 40

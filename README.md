@@ -1,95 +1,95 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="Melanta: o agente de IA que roda no seu Android" width="100%">
+  <img src="docs/banner.svg" alt="Melanta: the AI agent that runs on your Android" width="100%">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-em%20desenvolvimento-4A2E4B?style=for-the-badge" alt="Status: em desenvolvimento">
-  <img src="https://img.shields.io/badge/Android-12%2B-2E1430?style=for-the-badge&logo=android&logoColor=D9B8DA" alt="Android 12 ou superior">
-  <img src="https://img.shields.io/badge/Kotlin-Compose-2E1430?style=for-the-badge&logo=kotlin&logoColor=D9B8DA" alt="Kotlin e Jetpack Compose">
-  <img src="https://img.shields.io/badge/IA-local%20por%20padr%C3%A3o-1A1A1D?style=for-the-badge" alt="IA local por padrão">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licen%C3%A7a-MIT-1A1A1D?style=for-the-badge" alt="Licença MIT"></a>
+  <img src="https://img.shields.io/badge/status-in%20development-4A2E4B?style=for-the-badge" alt="Status: in development">
+  <img src="https://img.shields.io/badge/Android-12%2B-2E1430?style=for-the-badge&logo=android&logoColor=D9B8DA" alt="Android 12 or later">
+  <img src="https://img.shields.io/badge/Kotlin-Compose-2E1430?style=for-the-badge&logo=kotlin&logoColor=D9B8DA" alt="Kotlin and Jetpack Compose">
+  <img src="https://img.shields.io/badge/AI-local%20by%20default-1A1A1D?style=for-the-badge" alt="AI local by default">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-1A1A1D?style=for-the-badge" alt="MIT license"></a>
 </p>
 
 <p align="center">
-  <b>Peça em português. O Melanta lê a tela, decide o próximo passo e toca nos apps por você.</b><br>
-  Por padrão, o modelo roda no próprio celular, sem servidor e sem conta. Se preferir, ligue o modo Nuvem com a sua chave de API.
+  <b>Ask in plain language. Melanta reads the screen, decides the next step and taps through your apps for you.</b><br>
+  By default, the model runs on the phone itself, with no server and no account. If you prefer, turn on Cloud mode with your own API key.
 </p>
 
 ---
 
-## ✨ O que ele faz
+## ✨ What it does
 
-Você escreve o pedido, o agente executa e você acompanha tudo por um chip na barra de status.
+You write a request, the agent carries it out, and you follow along through a chip in the status bar. The app's interface is in Brazilian Portuguese, and these requests are the ones it is tested with:
 
-| Você pede | O Melanta faz |
+| You ask | Melanta |
 |---|---|
-| *"Põe um alarme para 7h"* | Cria o alarme no Relógio |
-| *"Coloca um timer de 5 minutos"* | Inicia o timer |
-| *"Desliga o wi-fi"* | Abre o painel e desliga o interruptor |
-| *"Manda SMS para 11 99999-8888 dizendo oi"* | Escreve a mensagem e **pede sua confirmação** antes de enviar |
-| *"Crie um contato com nome Jose e o número +55 24 98777-8990"* | Preenche o formulário e salva |
-| *"Me leva até a Avenida Paulista"* | Abre a rota no Maps |
-| *"Liga para 11 98765-4321"* | Abre o discador; quem completa a ligação é você |
+| *"Põe um alarme para 7h"* (set an alarm for 7) | Creates the alarm in Clock |
+| *"Coloca um timer de 5 minutos"* (a 5-minute timer) | Starts the timer |
+| *"Desliga o wi-fi"* (turn off Wi-Fi) | Opens the panel and turns off the switch |
+| *"Manda SMS para 11 99999-8888 dizendo oi"* (text this number) | Writes the message and **asks you to confirm** before sending |
+| *"Crie um contato com nome Jose e o número +55 24 98777-8990"* (add a contact) | Fills in the form and saves it |
+| *"Me leva até a Avenida Paulista"* (take me there) | Opens the route in Maps |
+| *"Liga para 11 98765-4321"* (call this number) | Opens the dialer; you place the call yourself |
 
-Ele também abre apps e links, faz buscas na web, escreve no WhatsApp e por e-mail e cria eventos na agenda. Nos demais apps, navega pela tela com toques, digitação e rolagem.
+It also opens apps and links, searches the web, drafts WhatsApp messages and emails, and creates calendar events. In other apps, it navigates the screen by tapping, typing and scrolling.
 
-## 🔒 Privacidade
+## 🔒 Privacy
 
-O Melanta tem dois modos. O **Local** é o padrão, e o **Nuvem** só liga se você pedir.
+Melanta has two modes. **Local** is the default, and **Cloud** only turns on if you ask for it.
 
-| | 📱 Local | ☁️ Nuvem (opcional) |
+| | 📱 Local | ☁️ Cloud (optional) |
 |---|---|---|
-| **Onde a IA roda** | No aparelho, com [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM) | No provedor que você escolher, com a sua chave de API |
-| **O que sai do aparelho** | Nada da sua tela | Seu pedido, os textos da tela e as ações feitas até ali |
-| **Internet** | Só para baixar o modelo | A cada passo da tarefa |
-| **Custo** | Nenhum | O que o provedor cobrar na sua conta |
+| **Where the AI runs** | On the device, with [LiteRT-LM](https://github.com/google-ai-edge/LiteRT-LM) | At the provider you choose, with your API key |
+| **What leaves the device** | Nothing from your screen | Your request, the text on screen and the actions taken so far |
+| **Internet** | Only to download the model | At every step of the task |
+| **Cost** | None | Whatever the provider charges your account |
 
-Ações como busca na web ou abrir um link usam os apps do próprio celular, que acessam a internet normalmente. Os logs de cada execução ficam no aparelho, em `files/agent-logs`.
+Actions such as a web search or opening a link use the apps on the phone, which access the internet as usual. The log of each run stays on the device, in `files/agent-logs`.
 
-**No modo Nuvem:**
+**In Cloud mode:**
 
-- **Você autoriza cada destino.** Um aviso explica o que será enviado, e nada sai sem esse aceite. Trocar de provedor ou de endereço pede autorização de novo.
-- **A chave fica cifrada no aparelho**, com o Android Keystore, e só é usada no destino para o qual foi salva.
-- **O conteúdo é reduzido antes do envio.** Campos de senha são ocultados, e números longos, e-mails e códigos são mascarados. O texto das notificações só vai se você ativar. Telas de bancos e de gerenciadores de senha não são enviadas.
-- **Só HTTPS.** Redirecionamentos não são seguidos, para a tela e a chave não irem parar em outro servidor.
-- **Fica visível.** O botão flutuante e a notificação mostram ☁ enquanto a tarefa roda na nuvem.
+- **You authorize each destination.** A notice explains what will be sent, and nothing leaves without your approval. Switching provider or address asks again.
+- **The key is encrypted on the device** with the Android Keystore, and is only used with the destination it was saved for.
+- **Content is reduced before sending.** Password fields are hidden, and long numbers, emails and codes are masked. Notification text is only sent if you turn that on. Screens from banking apps and password managers are not sent.
+- **HTTPS only.** Redirects are not followed, so the screen and the key cannot end up on another server.
+- **It stays visible.** The floating button and the notification show ☁ while a task runs in the cloud.
 
 > [!WARNING]
-> A redução de conteúdo é automática e pode deixar passar algo. Nomes e mensagens visíveis na tela são enviados, e o que acontece com os dados depois depende da política do provedor.
+> The content reduction is automatic and can miss things. Names and messages visible on screen are sent, and what happens to the data afterwards depends on the provider's policy.
 
-## 🛡️ Segurança
+## 🛡️ Safety
 
-Modelos pequenos erram, inclusive em casos sensíveis: nos testes, todos falharam em cenários de pagamento. Por isso, as regras abaixo estão **no código**, valem nos dois modos e o modelo não consegue ignorá-las.
+Small models make mistakes, including in sensitive cases: in testing, all of them failed payment scenarios, and one sent a message to a number with an extra digit. That is why the rules below live **in the code**. They apply in both modes, and the model cannot ignore them.
 
-| Regra | Exemplos |
+| Rule | Examples |
 |---|---|
-| ⛔ **Bloqueado sempre** | Pagamentos e compras, apps de banco, carteiras e cripto, digitar senhas, PINs ou números de cartão |
-| 🎯 **Confere o destino** | Número ou e-mail que não está no pedido, na tela ou em uma notificação é recusado. Se o pedido cita um telefone, a mensagem não sai de uma conversa com outro número |
-| ✋ **Pede sua confirmação** | Enviar, excluir, ligar, confirmar, sair da conta. No envio, mostra o destinatário e o texto. Sem resposta em 60 s, a ação é negada |
-| 🙋 **Passa a vez para você** | Janelas protegidas do sistema, como pedidos de permissão, que o agente não consegue ler |
-| ⏱️ **Limites por tarefa** | 20 passos, 5 minutos, 3 repetições da mesma ação na mesma tela, 3 erros seguidos |
+| ⛔ **Always blocked** | Payments and purchases, banking, wallet and crypto apps, typing passwords, PINs or card numbers |
+| 🎯 **Checks the destination** | A number or email that is not in the request, on screen or in a notification is rejected. If the request names a phone number, the message cannot go out from a conversation with a different number |
+| ✋ **Asks for your confirmation** | Sending, deleting, calling, confirming, signing out. For SMS, WhatsApp and email forms opened by the agent, it shows the recipient and the text. With no answer within 60 s, the action is denied |
+| 🙋 **Hands over to you** | Protected system windows the agent cannot read, such as permission prompts |
+| ⏱️ **Limits per task** | 20 steps, 5 minutes, 3 repeats of the same action on the same screen, 3 errors in a row |
 
-**Para parar na hora:** botão **PARAR** flutuante, ação na notificação ou **Volume− três vezes**.
+**To stop it right away:** the floating **PARAR** (stop) button, the action in the notification, or **Volume Down three times**.
 
-## ⚙️ Como funciona
+## ⚙️ How it works
 
-O agente repete um ciclo curto até concluir ou atingir um limite. O modelo, local ou na nuvem, sugere a ação, mas quem autoriza e executa é o código.
+The agent repeats a short cycle until it finishes or hits a limit. The model, local or in the cloud, suggests the action, but the code is what authorizes and executes it.
 
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"primaryColor": "#4A2E4B", "primaryTextColor": "#FFFFFF", "primaryBorderColor": "#D9B8DA", "lineColor": "#9B7A9C", "secondaryColor": "#2E1430", "tertiaryColor": "#1A1A1D", "fontFamily": "Inter, Segoe UI, Roboto, sans-serif"}}}%%
 flowchart LR
-    A["👁️ Perceber<br/>lê a tela pela Acessibilidade"] --> B["🧠 Raciocinar<br/>o modelo escolhe a ação"]
-    B --> C{"🛡️ Validar<br/>SafetyPolicy"}
-    C -- permitido --> D["👆 Agir<br/>toque, texto ou intent"]
-    C -- sensível --> E["✋ Você confirma"]
-    E -- sim --> D
-    C -- proibido --> F["⛔ Encerra"]
-    E -- não --> F
-    D --> G["⏳ Espera a tela estabilizar"]
+    A["👁️ Perceive<br/>reads the screen through Accessibility"] --> B["🧠 Reason<br/>the model picks an action"]
+    B --> C{"🛡️ Validate<br/>SafetyPolicy"}
+    C -- allowed --> D["👆 Act<br/>tap, text or intent"]
+    C -- sensitive --> E["✋ You confirm"]
+    E -- yes --> D
+    C -- forbidden --> F["⛔ Stops"]
+    E -- no --> F
+    D --> G["⏳ Waits for the screen to settle"]
     G --> A
 ```
 
-A tela chega ao modelo como uma lista compacta de elementos:
+The screen reaches the model as a compact list of elements:
 
 ```text
 SCREEN (com.android.settings | Settings Panel):
@@ -99,52 +99,55 @@ SCREEN (com.android.settings | Settings Panel):
 [9] btn "Done" click
 ```
 
-E ele responde com uma única ação em JSON:
+And it answers with a single action in JSON:
 
 ```json
-{"thought": "rule 5: tocar no interruptor", "tool": "click", "args": {"id": 4}}
+{"thought": "rule 5: tap the switch", "tool": "click", "args": {"id": 4}}
 ```
 
-## 🧠 Modelos
+## 🧠 Models
 
 ### 📱 Local
 
-Todos são gratuitos, têm licença Apache-2.0 e não exigem login. O download é feito pelo app, com retomada e conferência de SHA-256.
+All of them are free, Apache-2.0 licensed and need no login. The app handles the download, with resume and SHA-256 verification.
 
-| Modelo | Tamanho | RAM recomendada | Acertos¹ | Velocidade¹ |
+| Model | Size | Recommended RAM | Correct¹ | Speed¹ |
 |---|---:|---:|---:|---:|
-| **Gemma 4 E2B** (padrão) | 2,6 GB | 8 GB | **22/28** | 42 tok/s |
-| Qwen3 4B Instruct 2507 | 2,7 GB | 12 GB | 18/28 | 11 tok/s |
-| Qwen2.5 1.5B (leve) | 1,6 GB | 6 GB | 8/28 | 27 tok/s |
+| **Gemma 4 E2B** (default) | 2.6 GB | 8 GB | **22/28** | 42 tok/s |
+| Qwen3 4B Instruct 2507 | 2.7 GB | 12 GB | 18/28 | 11 tok/s |
+| Qwen2.5 1.5B (light) | 1.6 GB | 6 GB | 8/28 | 27 tok/s |
 
-<sub>¹ Benchmark de 28 cenários do <code>tools/model-bench</code>, rodado em CPU de desktop com 16 threads. Num celular, a velocidade será diferente.</sub>
+<sub>¹ 28-scenario benchmark from <code>tools/model-bench</code>, run on a desktop CPU with 16 threads. Speed will differ on a phone.</sub>
 
-### ☁️ Nuvem
+### ☁️ Cloud
 
-Use qualquer provedor compatível com a API da OpenAI. O app já traz presets de **Groq**, **OpenRouter**, **OpenAI** e **Google Gemini**, e você pode informar outro endereço HTTPS. Para ligar, abra **⋮ → Motor de IA**, salve a chave, teste a conexão e selecione **Nuvem**. O modelo sugerido em cada preset pode ser trocado.
+Use any provider compatible with the OpenAI API. The app includes presets for **Groq**, **OpenRouter**, **OpenAI** and **Google Gemini**, and you can enter another HTTPS address. To turn it on, open **⋮ → Motor de IA** (AI engine), save your key, test the connection and select **Nuvem** (Cloud). The model suggested by each preset can be changed.
 
-## 📊 Estado atual
+## 📊 Current status
 
-O projeto está em desenvolvimento e ainda não há versão publicada.
+The project is in development and there is no published release yet.
 
-| Item | Resultado |
+| Item | Result |
 |---|---|
-| Testes de ponta a ponta (10 tarefas, emulador, Gemma em CPU) | **9/10**, média de 22 s por tarefa |
-| Testes unitários | 130 passando |
-| Modo Nuvem no emulador, com um provedor falso | Tarefa concluída, conteúdo mascarado, chave errada e provedor fora do ar com mensagem clara |
+| End-to-end tests (10 tasks, emulator, Gemma on CPU) | **8/10** in the latest run, averaging 35 s per task |
+| Unit tests | 134 passing |
+| Cloud mode on the emulator, with a fake provider | Task completed, content masked, clear messages for a wrong key and a provider outage |
+| Telegram on a real phone | With a scripted fake provider, it searched for a group, opened it and sent a message |
 
-**Limitações conhecidas**
+**Known limitations**
 
-- **Modo Nuvem:** ainda não foi testado com um provedor real, então os presets e a qualidade das respostas não estão medidos. Servidores na rede local por HTTP, como Ollama, não são aceitos; é preciso HTTPS.
-- **Destinatário por nome:** a conferência de destino vale para números e e-mails. Ao pedir "manda para a Ana", confira o destinatário na confirmação.
-- **Evento na agenda:** é a tarefa que falta no E2E. O Google Agenda do emulador de teste não tem conta Google e fecha o editor.
-- **Celular real:** Volume− três vezes e aceleração por GPU ainda não foram validados em um aparelho. O emulador usa só a CPU.
-- **WhatsApp, e-mail e tarefas longas:** ainda não fazem parte do E2E.
-- **Apps que escondem elementos:** se um app não expõe um campo à Acessibilidade, o agente não consegue lê-lo.
+- **SMS in the end-to-end tests:** the result varies between runs. It passed in the previous run and, in the latest one, the model wrote the value in the wrong format and then made up a number. The agent rejected it and nothing was sent.
+- **Calendar event:** this task always fails on the test emulator, because Google Calendar has no Google account there and closes the editor.
+- **Local model on a real phone:** a full Telegram task with Qwen2.5 1.5B, the weakest model in the catalog, failed. Gemma 4 E2B has not been tried on a phone yet.
+- **Cloud mode:** Gemini answered during real tasks, but a long task has not been completed with a real provider yet, and the other presets and the quality of the answers are unmeasured. Servers on the local network over HTTP, such as Ollama, are not accepted; HTTPS is required.
+- **Recipient by name:** the destination check covers numbers and emails. It does not confirm that the group or contact that was opened is the one you asked for, and the confirmation may not name it, so check the screen before approving.
+- **Real phone:** Volume Down three times and GPU acceleration have not been validated on a device. The emulator only uses the CPU.
+- **WhatsApp, email and long tasks:** these are not part of the end-to-end tests yet.
+- **Apps that hide elements:** if an app does not expose a field to Accessibility, the agent cannot read it.
 
-## 🚀 Como rodar
+## 🚀 Getting started
 
-**Você precisa de:** Android SDK com a plataforma 37 e JDK (o projeto é desenvolvido com o JDK 27). O aparelho precisa de Android 12 ou superior e de espaço para o modelo, mais um cache de pesos de tamanho parecido.
+**You will need:** the Android SDK with platform 37 and a JDK (the project is developed with JDK 27). The device needs Android 12 or later and room for the model, plus a weight cache of similar size.
 
 ```bash
 git clone git@github.com:antonyguedes/melanta.git
@@ -152,63 +155,63 @@ cd melanta
 ./gradlew :app:installDebug
 ```
 
-Depois, no aparelho:
+Then, on the device:
 
-1. Abra o Melanta e conceda as permissões pedidas, principalmente a **Acessibilidade**.
-2. Baixe um modelo na tela de **Modelos**.
-3. Escreva um pedido e acompanhe pela barra de status.
+1. Open Melanta and grant the requested permissions, especially **Accessibility**.
+2. Download a model on the **Modelos** (Models) screen.
+3. Write a request and follow it through the status bar.
 
-Para usar a nuvem no lugar do modelo local, pule o passo 2 e configure o provedor em **⋮ → Motor de IA**.
+To use the cloud instead of a local model, skip step 2 and set up the provider in **⋮ → Motor de IA** (AI engine).
 
 > [!TIP]
-> Para rodar o modelo em um emulador, inicie-o com pelo menos 6 GB de RAM e 8 núcleos: `-memory 6144 -cores 8`.
+> To run the model on an emulator, start it with at least 6 GB of RAM and 8 cores: `-memory 6144 -cores 8`.
 
-## 🧩 Estrutura
+## 🧩 Project structure
 
 ```text
 melanta
-├── app                  Navegação, permissões, telas de modelos e de motor de IA, playground
+├── app                  Navigation, permissions, models and AI engine screens, playground
 ├── core
-│   ├── ai               Motores local e na nuvem, modelos, prompt, parser de ações e redator de conteúdo
-│   ├── automation       Serviço de Acessibilidade, leitura da tela, execução de ações e intents
-│   ├── designsystem     Tema e componentes da marca
-│   └── common           Utilitários compartilhados
+│   ├── ai               Local and cloud engines, models, prompt, action parser and content redactor
+│   ├── automation       Accessibility service, screen reading, action and intent execution
+│   ├── designsystem     Brand theme and components
+│   └── common           Shared utilities
 ├── feature
-│   └── agent            Loop do agente, regras de segurança, overlay, notificações e tela principal
+│   └── agent            Agent loop, safety rules, overlay, notifications and main screen
 └── tools
-    ├── model-bench      Benchmark de modelos no desktop, com o mesmo prompt e parser do app
-    └── e2e              Testes de ponta a ponta via adb e provedor falso para o modo Nuvem
+    ├── model-bench      Desktop model benchmark, with the same prompt and parser as the app
+    └── e2e              End-to-end tests over adb and a fake provider for Cloud mode
 ```
 
-**Tecnologias:** Kotlin, Jetpack Compose, Hilt, Coroutines, WorkManager, DataStore e LiteRT-LM.
+**Built with:** Kotlin, Jetpack Compose, Hilt, Coroutines, WorkManager, DataStore and LiteRT-LM.
 
-## 🧪 Testes
+## 🧪 Testing
 
 ```bash
-# Testes unitários e lint
+# Unit tests and lint
 ./gradlew testDebugUnitTest lintDebug
 
-# Ponta a ponta: exige o build de debug instalado, com o modelo no aparelho
+# End-to-end: needs the debug build installed, with the model on the device
 python3 tools/e2e/run_e2e.py --serial emulator-5554
 python3 tools/e2e/run_e2e.py --only alarme,wifi,sms
 
-# Benchmark de um modelo no desktop
+# Benchmark a model on the desktop
 ./gradlew :tools:model-bench:installDist
-tools/model-bench/build/install/model-bench/bin/model-bench caminho/do/modelo.litertlm --threads 16
+tools/model-bench/build/install/model-bench/bin/model-bench path/to/model.litertlm --threads 16
 
-# Os mesmos cenários contra um provedor (a chave vem do ambiente, nunca de um argumento)
-MELANTA_CLOUD_KEY=sua-chave tools/model-bench/build/install/model-bench/bin/model-bench \
+# The same scenarios against a provider (the key comes from the environment, never from an argument)
+MELANTA_CLOUD_KEY=your-key tools/model-bench/build/install/model-bench/bin/model-bench \
   --cloud https://api.groq.com/openai/v1 --cloud-model llama-3.3-70b-versatile
 
-# Provedor falso, para testar o modo Nuvem sem chave e sem custo (no emulador: http://10.0.2.2:8123/v1)
-python3 tools/e2e/fake_cloud.py --log corpos.jsonl
+# Fake provider, to test Cloud mode with no key and no cost (on the emulator: http://10.0.2.2:8123/v1)
+python3 tools/e2e/fake_cloud.py --log bodies.jsonl
 ```
 
 > [!NOTE]
-> O roteiro de E2E procura o `adb` em `~/Android/Sdk/platform-tools/`. Ele também altera o aparelho: envia SMS, muda o Wi-Fi, apaga os contatos `Jose` e `Maria` e redefine a permissão de notificações do YouTube. Use um emulador dedicado.
+> The end-to-end script looks for `adb` in `~/Android/Sdk/platform-tools/`. It also changes the device: it sends SMS, toggles Wi-Fi, deletes the `Jose` and `Maria` contacts and resets YouTube's notification permission. Use a dedicated emulator.
 
-## 📄 Licença
+## 📄 License
 
-O código é distribuído sob a [licença MIT](LICENSE). © 2026 Antony Guedes.
+The code is distributed under the [MIT license](LICENSE). © 2026 Antony Guedes.
 
-A imagem do banner mostra Melantha, personagem de *Arknights*, e não faz parte dessa licença. Os direitos da personagem pertencem aos seus detentores.
+The banner image shows Melantha, a character from *Arknights*, and is not covered by this license. The rights to the character belong to their respective owners.

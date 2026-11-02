@@ -122,6 +122,13 @@ class CloudGeneratorTest {
         respond = { status(it, 429, "", "Retry-After" to "7") }
         assertEquals(7L, assertFails<CloudRateLimitException> { generator.generate(prompt).toList() }.retryAfterSeconds)
 
+        respond = { status(it, 429, """[{"error":{"code":429,"details":[{"retryDelay":"37s"}]}}]""") }
+        assertEquals("prazo no corpo do erro, como no Gemini", 38L, assertFails<CloudRateLimitException> { generator.generate(prompt).toList() }.retryAfterSeconds)
+
+        respond = { status(it, 429, """{"error":{"details":[{"retryDelay":"56105s"}]}}""") }
+        val quota = assertFails<CloudRateLimitException> { generator.generate(prompt).toList() }
+        assertTrue(quota.message!!, "cota" in quota.message!! && "16 h" in quota.message!!)
+
         respond = { status(it, 503) }
         assertFails<CloudUnavailableException> { generator.generate(prompt).toList() }
 

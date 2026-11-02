@@ -29,8 +29,9 @@ data class AgentUiState(
     val modelName: String?,
     val engine: EngineState,
     val accessibilityConnected: Boolean,
-    /** Modo Nuvem: [modelName] é o modelo remoto e fica `null` enquanto falta chave ou consentimento. */
+    /** Modo Nuvem: [modelName] é o modelo remoto e fica `null` enquanto houver um [cloudProblem]. */
     val cloud: Boolean = false,
+    val cloudProblem: String? = null,
 ) {
     val canStart: Boolean get() = modelName != null && accessibilityConnected
 }
@@ -61,9 +62,11 @@ class AgentViewModel @Inject constructor(
         store.installed,
         modelManager.state,
         bridge.isConnected,
-        settings.state,
+        // A chave não faz parte das configurações: salvar uma também precisa reavaliar a tela.
+        combine(settings.state, cloudAccess.keyChanges) { inference, _ -> inference },
     ) { (agent, steps), _, engine, connected, inference ->
-        AgentUiState(agent, steps, modelName(inference), engine, connected, inference.mode == InferenceMode.Cloud)
+        val cloud = inference.mode == InferenceMode.Cloud
+        AgentUiState(agent, steps, modelName(inference), engine, connected, cloud, cloudAccess.problem(inference).takeIf { cloud })
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -78,7 +81,7 @@ class AgentViewModel @Inject constructor(
 
     private fun modelName(inference: InferencePreferences): String? = when (inference.mode) {
         InferenceMode.Local -> modelManager.preferredModel()?.displayName
-        InferenceMode.Cloud -> inference.cloud.model.takeIf { cloudAccess.isReady(inference) }
+        InferenceMode.Cloud -> inference.cloud.model.takeIf { cloudAccess.problem(inference) == null }
     }
 
     fun start(task: String) = controller.start(task)

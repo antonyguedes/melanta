@@ -77,6 +77,62 @@ class ScreenParserTest {
     }
 
     @Test
+    fun `linha de lista sem clique proprio fica tocavel, como no Telegram`() {
+        val group = "Lobinho DH, 445 membros"
+        val root = FakeNode(
+            bounds = screen,
+            children = listOf(
+                FakeNode(className = "android.widget.TextView", text = "Título", bounds = Bounds(0, 0, 500, 100)),
+                FakeNode(
+                    className = "androidx.recyclerview.widget.RecyclerView",
+                    isScrollable = true,
+                    bounds = Bounds(0, 200, 1080, 2000),
+                    children = listOf(
+                        // A célula marcável e o texto dentro dela descrevem a mesma linha.
+                        FakeNode(
+                            className = "android.widget.FrameLayout",
+                            text = group,
+                            isCheckable = true,
+                            bounds = Bounds(0, 300, 1080, 450),
+                            children = listOf(FakeNode(className = "android.view.View", text = group, bounds = Bounds(100, 320, 900, 430))),
+                        ),
+                        FakeNode(className = "android.widget.TextView", text = "Globais", bounds = Bounds(0, 500, 1080, 560)),
+                    ),
+                ),
+            ),
+        )
+        assertEquals(
+            listOf(
+                """[1] txt "Título"""",
+                """[2] list "" scroll""",
+                """[3] item "$group" click""",
+                """[4] item "Globais" click""",
+            ),
+            lines(app(root, pkg = "org.telegram.messenger", title = null)),
+        )
+    }
+
+    @Test
+    fun `interruptor dentro de linha clicavel continua sendo interruptor`() {
+        val root = FakeNode(
+            bounds = screen,
+            isScrollable = true,
+            children = listOf(
+                FakeNode(
+                    className = "android.widget.LinearLayout",
+                    isClickable = true,
+                    bounds = Bounds(0, 300, 1080, 450),
+                    children = listOf(
+                        FakeNode(className = "android.widget.TextView", text = "Bluetooth", bounds = Bounds(40, 330, 800, 420)),
+                        FakeNode(className = "android.widget.Switch", isCheckable = true, isChecked = true, bounds = Bounds(900, 340, 1040, 410)),
+                    ),
+                ),
+            ),
+        )
+        assertTrue(lines(app(root)).toString(), lines(app(root)).any { it.startsWith("[3] sw") && it.endsWith("checked") })
+    }
+
+    @Test
     fun `janela protegida no topo vira protectedWindow`() {
         val dialog = UiWindow(WindowKind.Application, 2, null, "Allow YouTube to send you notifications?", Bounds(28, 789, 1052, 1610), null)
         val snapshot = parser.parse(listOf(dialog), "com.melanta", screen)

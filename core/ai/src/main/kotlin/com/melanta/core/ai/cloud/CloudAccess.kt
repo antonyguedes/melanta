@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Único ponto que libera o destino da nuvem: sem consentimento registrado para este destino, nenhum
@@ -16,27 +17,31 @@ class CloudAccess @Inject constructor(
     private val settings: InferenceSettings,
     private val keys: ApiKeyStore,
 ) {
+    /** Avisa quando uma chave muda: ela não faz parte das configurações. */
+    val keyChanges: StateFlow<Int> get() = keys.revision
+
     suspend fun endpoint(): CloudEndpoint {
         val prefs = settings.current()
-        if (!prefs.hasConsent) {
-            throw CloudNotReadyException("Autorize o envio da tela para ${prefs.cloud.provider.displayName} em Motor de IA.")
-        }
-        return connectionEndpoint(prefs.cloud)
+        problem(prefs)?.let { throw CloudNotReadyException(it) }
+        return CloudEndpoint(prefs.cloud.baseUrl.trim(), prefs.cloud.model.trim(), keys.get(prefs.cloud.destinationId))
     }
 
     /** Para testar a conexão: envolve só a chave, sem nenhum conteúdo da tela. */
     fun connectionEndpoint(config: CloudConfig): CloudEndpoint {
-        config.problem()?.let { throw CloudNotReadyException(it) }
-        val key = keys.get(config.destinationId)
-        if (key == null && config.provider != CloudProvider.Custom) {
-            throw CloudNotReadyException("Informe a chave de API de ${config.provider.displayName} em Motor de IA.")
-        }
-        return CloudEndpoint(config.baseUrl.trim(), config.model.trim(), key)
+        (config.problem() ?: missingKey(config))?.let { throw CloudNotReadyException(it) }
+        return CloudEndpoint(config.baseUrl.trim(), config.model.trim(), keys.get(config.destinationId))
     }
 
-    fun isReady(prefs: InferencePreferences): Boolean =
-        prefs.hasConsent && prefs.cloud.problem() == null &&
-            (prefs.cloud.provider == CloudProvider.Custom || keys.get(prefs.cloud.destinationId) != null)
+    /** O que falta para usar a nuvem, em PT-BR, ou `null` se estiver pronta. */
+    fun problem(prefs: InferencePreferences): String? =
+        prefs.cloud.problem()
+            ?: missingKey(prefs.cloud)
+            ?: "Falta autorizar o envio da tela para ${prefs.cloud.provider.displayName}.".takeUnless { prefs.hasConsent }
+
+    private fun missingKey(config: CloudConfig): String? =
+        "Falta a chave de API de ${config.provider.displayName}.".takeIf {
+            config.provider != CloudProvider.Custom && keys.get(config.destinationId) == null
+        }
 }
 
 /** Confere uma vez por destino e chave, por sessão do app, se a nuvem responde antes de começar uma tarefa. */

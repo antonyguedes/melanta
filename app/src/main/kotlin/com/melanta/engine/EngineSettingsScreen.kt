@@ -91,6 +91,14 @@ fun EngineSettingsRoute(onBack: () -> Unit, viewModel: EngineSettingsViewModel =
                     selected = prefs.mode == InferenceMode.Cloud,
                     onClick = viewModel::selectCloud,
                 )
+                if (prefs.mode == InferenceMode.Cloud) {
+                    state.problem?.let { problem ->
+                        Text(problem, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                        if (!prefs.hasConsent && prefs.cloud.problem() == null) {
+                            TextButton(onClick = viewModel::selectCloud) { Text(stringResource(R.string.engine_authorize)) }
+                        }
+                    }
+                }
             }
 
             SectionCard(title = stringResource(R.string.engine_provider_title)) {
@@ -114,7 +122,7 @@ fun EngineSettingsRoute(onBack: () -> Unit, viewModel: EngineSettingsViewModel =
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                ApiKeyField(state.hasKey, viewModel::saveKey, viewModel::removeKey)
+                ApiKeyField(prefs.cloud.destinationId, state.hasKey, viewModel::saveKey, viewModel::removeKey)
                 OutlinedButton(
                     onClick = viewModel::testConnection,
                     enabled = state.test != ConnectionTest.Running,
@@ -148,30 +156,48 @@ fun EngineSettingsRoute(onBack: () -> Unit, viewModel: EngineSettingsViewModel =
 }
 
 @Composable
-private fun ApiKeyField(hasKey: Boolean, onSave: (String) -> Unit, onRemove: () -> Unit) {
-    // A chave salva nunca volta para a tela: o campo só serve para digitar uma nova.
-    var typed by remember { mutableStateOf("") }
-    OutlinedTextField(
-        value = typed,
-        onValueChange = { typed = it },
-        label = { Text(stringResource(R.string.engine_api_key)) },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
-        modifier = Modifier.fillMaxWidth(),
-    )
+private fun ApiKeyField(destinationId: String, hasKey: Boolean, onSave: (String) -> Unit, onRemove: () -> Unit) {
+    // A chave salva nunca volta para a tela. O texto digitado é descartado ao trocar de destino,
+    // para não ser salvo como chave de outro provedor.
+    var typed by remember(destinationId) { mutableStateOf("") }
+    var adding by remember(destinationId) { mutableStateOf(false) }
+
     if (hasKey) {
         Text(stringResource(R.string.engine_api_key_saved), style = MaterialTheme.typography.bodySmall, color = MelantaColors.TextMuted)
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        PlumButton(
-            onClick = {
-                onSave(typed)
-                typed = ""
-            },
-            enabled = typed.isNotBlank(),
-        ) { Text(stringResource(R.string.engine_save_key)) }
-        if (hasKey) TextButton(onClick = onRemove) { Text(stringResource(R.string.engine_remove_key)) }
+    if (!hasKey || adding) {
+        OutlinedTextField(
+            value = typed,
+            onValueChange = { typed = it },
+            label = { Text(stringResource(R.string.engine_api_key)) },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            PlumButton(
+                onClick = {
+                    onSave(typed)
+                    typed = ""
+                    adding = false
+                },
+                enabled = typed.isNotBlank(),
+            ) { Text(stringResource(R.string.engine_save_key)) }
+            if (adding) {
+                TextButton(
+                    onClick = {
+                        typed = ""
+                        adding = false
+                    },
+                ) { Text(stringResource(R.string.engine_cancel)) }
+            }
+        }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            PlumButton(onClick = { adding = true }) { Text(stringResource(R.string.engine_add_key)) }
+            TextButton(onClick = onRemove) { Text(stringResource(R.string.engine_remove_key)) }
+        }
     }
 }
 

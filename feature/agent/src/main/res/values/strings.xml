@@ -39,7 +39,6 @@
     <string name="agent_model_none">Nenhum modelo instalado</string>
     <string name="agent_model_cloud">Nuvem · %1$s</string>
     <string name="agent_model_cloud_setup">Nuvem · falta configurar</string>
-    <string name="agent_setup_cloud">O modo Nuvem está ligado, mas falta a chave de API ou a autorização de envio.</string>
     <string name="agent_model_ready">%1$s · pronto (%2$s)</string>
     <string name="agent_model_loading">%1$s · carregando</string>
     <string name="agent_model_error">%1$s · erro ao carregar</string>
